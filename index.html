@@ -84,6 +84,10 @@
             background-color: #dc3545;
             border-color: #dc3545;
         }
+        .btn-info {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+        }
         .modal-content {
             border-radius: 10px;
         }
@@ -110,6 +114,11 @@
         .connection-bad {
             background-color: #f8d7da;
             color: #721c24;
+        }
+        .fees-details-container {
+            max-height: 500px;
+            overflow-y: auto;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -159,6 +168,9 @@
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="withdrawals-tab" data-bs-toggle="tab" data-bs-target="#withdrawals" type="button" role="tab">Withdrawals</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="added-fees-tab" data-bs-toggle="tab" data-bs-target="#added-fees" type="button" role="tab">Added Fees</button>
                     </li>
                 </ul>
                 <div class="tab-content p-3 border border-top-0 rounded-bottom" id="myTabContent">
@@ -291,6 +303,31 @@
                             </table>
                         </div>
                     </div>
+                    
+                    <!-- Added Fees Tab -->
+                    <div class="tab-pane fade" id="added-fees" role="tabpanel">
+                        <h3>All Added Fees</h3>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <button id="refresh-added-fees" class="btn btn-info">Refresh Data</button>
+                            </div>
+                        </div>
+                        <div class="table-responsive">
+                            <table id="added-fees-table" class="table table-striped table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Description</th>
+                                        <th>Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Data will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -340,7 +377,7 @@
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     
-    <!-- Firebase SDK (updated to version 10.7.1) -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
 
@@ -397,6 +434,7 @@
         const addFoodBtn = document.getElementById('add-food');
         const withdrawBtn = document.getElementById('withdraw-btn');
         const confirmWithdrawBtn = document.getElementById('confirm-withdraw');
+        const refreshAddedFeesBtn = document.getElementById('refresh-added-fees');
         const totalBalanceElement = document.getElementById('total-balance');
         const totalIncomeElement = document.getElementById('total-income');
         const totalWithdrawalsElement = document.getElementById('total-withdrawals');
@@ -408,6 +446,7 @@
             $('#offerings-table').DataTable();
             $('#food-table').DataTable();
             $('#withdrawals-table').DataTable();
+            $('#added-fees-table').DataTable();
         });
 
         // Global variables to store totals
@@ -591,6 +630,7 @@
                     logDebug("Class fee added successfully");
                     feeAmount.value = '';
                     calculateTotals();
+                    loadAddedFees(); // Refresh the added fees tab
                     alert('Class fee added successfully!');
                 })
                 .catch((error) => {
@@ -607,6 +647,7 @@
                     .then(() => {
                         logDebug("Class fee deleted successfully");
                         calculateTotals();
+                        loadAddedFees(); // Refresh the added fees tab
                     })
                     .catch((error) => {
                         logDebug('Error deleting fee:', error);
@@ -681,6 +722,7 @@
                     logDebug("Offering added successfully");
                     offeringAmount.value = '';
                     calculateTotals();
+                    loadAddedFees(); // Refresh the added fees tab
                     alert('Offering added successfully!');
                 })
                 .catch((error) => {
@@ -697,6 +739,7 @@
                     .then(() => {
                         logDebug("Offering deleted successfully");
                         calculateTotals();
+                        loadAddedFees(); // Refresh the added fees tab
                     })
                     .catch((error) => {
                         logDebug('Error deleting offering:', error);
@@ -780,6 +823,7 @@
                     vendorName.value = '';
                     foodAmount.value = '';
                     calculateTotals();
+                    loadAddedFees(); // Refresh the added fees tab
                     alert('Food vendor due added successfully!');
                 })
                 .catch((error) => {
@@ -796,6 +840,7 @@
                     .then(() => {
                         logDebug("Food vendor deleted successfully");
                         calculateTotals();
+                        loadAddedFees(); // Refresh the added fees tab
                     })
                     .catch((error) => {
                         logDebug('Error deleting food vendor:', error);
@@ -855,6 +900,66 @@
             }, (error) => {
                 logDebug("Error loading withdrawals:", error);
                 alert("Error loading withdrawals. Check console for details.");
+            });
+        }
+
+        // Load and display all added fees (class fees, offerings, food vendors)
+        function loadAddedFees() {
+            logDebug("Loading all added fees...");
+            const addedFeesTableBody = document.querySelector('#added-fees-table tbody');
+            addedFeesTableBody.innerHTML = '';
+            
+            // Load class fees
+            database.ref('classFees').orderByChild('date').once('value', (classFeesSnapshot) => {
+                classFeesSnapshot.forEach((childSnapshot) => {
+                    const fee = childSnapshot.val();
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${formatDate(fee.date)}</td>
+                        <td>Class Fee</td>
+                        <td>${fee.className || 'N/A'}</td>
+                        <td>${formatCurrency(fee.amount || 0)}</td>
+                    `;
+                    addedFeesTableBody.appendChild(row);
+                });
+                
+                // Load offerings
+                database.ref('offerings').orderByChild('date').once('value', (offeringsSnapshot) => {
+                    offeringsSnapshot.forEach((childSnapshot) => {
+                        const offering = childSnapshot.val();
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${formatDate(offering.date)}</td>
+                            <td>Church Offering</td>
+                            <td>Weekly Collection</td>
+                            <td>${formatCurrency(offering.amount || 0)}</td>
+                        `;
+                        addedFeesTableBody.appendChild(row);
+                    });
+                    
+                    // Load food vendors
+                    database.ref('foodVendors').orderByChild('date').once('value', (foodVendorsSnapshot) => {
+                        foodVendorsSnapshot.forEach((childSnapshot) => {
+                            const vendor = childSnapshot.val();
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${formatDate(vendor.date)}</td>
+                                <td>Food Vendor</td>
+                                <td>${vendor.vendorName || 'N/A'}</td>
+                                <td>${formatCurrency(vendor.amount || 0)}</td>
+                            `;
+                            addedFeesTableBody.appendChild(row);
+                        });
+                        
+                        $('#added-fees-table').DataTable().draw();
+                    }).catch((error) => {
+                        logDebug("Error loading food vendors for added fees:", error);
+                    });
+                }).catch((error) => {
+                    logDebug("Error loading offerings for added fees:", error);
+                });
+            }).catch((error) => {
+                logDebug("Error loading class fees for added fees:", error);
             });
         }
 
@@ -920,6 +1025,11 @@
                 });
         });
 
+        // Refresh added fees button
+        refreshAddedFeesBtn.addEventListener('click', () => {
+            loadAddedFees();
+        });
+
         // Initialize the application
         function initApp() {
             logDebug("Initializing application...");
@@ -927,6 +1037,7 @@
             loadOfferings();
             loadFoodVendors();
             loadWithdrawals();
+            loadAddedFees();
             calculateTotals();
             
             // Update current balance in withdrawal modal when it opens
