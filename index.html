@@ -11,45 +11,37 @@
             background-color: #f8f9fa;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
         .summary-card {
             margin-bottom: 20px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s ease;
         }
-
         .summary-card:hover {
             transform: translateY(-5px);
         }
-
         .card-title {
             color: #6c757d;
             font-size: 1rem;
             font-weight: 600;
         }
-
         #total-balance, #total-income, #total-withdrawals {
             color: #2c3e50;
             font-weight: 700;
         }
-
         .nav-tabs .nav-link {
             font-weight: 600;
             color: #495057;
         }
-
         .nav-tabs .nav-link.active {
             color: #0d6efd;
             background-color: #fff;
             border-color: #dee2e6 #dee2e6 #fff;
         }
-
         .table {
             margin-top: 20px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
-
         .chat-container {
             background-color: #f8f9fa;
             border-radius: 10px;
@@ -58,7 +50,6 @@
             overflow-y: auto;
             border: 1px solid #dee2e6;
         }
-
         .chat-message {
             background-color: #e9ecef;
             border-radius: 10px;
@@ -66,7 +57,6 @@
             margin-bottom: 10px;
             position: relative;
         }
-
         .chat-message:after {
             content: '';
             position: absolute;
@@ -78,39 +68,48 @@
             border-right: 10px solid transparent;
             border-bottom: 10px solid #e9ecef;
         }
-
         .chat-date {
             font-size: 0.8rem;
             color: #6c757d;
         }
-
         .chat-amount {
             font-weight: bold;
             color: #dc3545;
         }
-
         .btn-primary {
             background-color: #0d6efd;
             border-color: #0d6efd;
         }
-
         .btn-danger {
             background-color: #dc3545;
             border-color: #dc3545;
         }
-
         .modal-content {
             border-radius: 10px;
         }
-
         .form-control, .form-select {
             border-radius: 5px;
             padding: 10px;
         }
-
         #current-balance-display {
             font-weight: bold;
             color: #28a745;
+        }
+        #connection-status {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .connection-good {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .connection-bad {
+            background-color: #f8d7da;
+            color: #721c24;
         }
     </style>
 </head>
@@ -332,25 +331,41 @@
         </div>
     </div>
 
+    <!-- Connection Status Indicator -->
+    <div id="connection-status" class="connection-bad">Disconnected from Database</div>
+
     <!-- Firebase and other scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script type="module">
-        // Import the functions you need from the Firebase SDKs
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { 
-            getDatabase,
-            ref,
-            push,
-            set,
-            onValue,
-            remove,
-            query,
-            orderByChild,
-            get
-        } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js"></script>
+
+    <script>
+        // Debugging flag
+        const DEBUG_MODE = true;
+        
+        function logDebug(message, data = null) {
+            if (DEBUG_MODE) {
+                console.log("[DEBUG] " + message, data || "");
+            }
+        }
+
+        // Update connection status indicator
+        function updateConnectionStatus(connected) {
+            const statusElement = document.getElementById('connection-status');
+            if (connected) {
+                statusElement.textContent = "Connected to Database";
+                statusElement.className = "connection-good";
+                logDebug("Database connection established");
+            } else {
+                statusElement.textContent = "Disconnected from Database";
+                statusElement.className = "connection-bad";
+                logDebug("Database connection lost");
+            }
+        }
 
         // Your web app's Firebase configuration
         const firebaseConfig = {
@@ -365,8 +380,15 @@
         };
 
         // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        logDebug("Initializing Firebase...");
+        const app = firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        // Monitor connection state
+        const connectedRef = database.ref(".info/connected");
+        connectedRef.on("value", (snap) => {
+            updateConnectionStatus(snap.val() === true);
+        });
 
         // DOM Elements
         const addFeeBtn = document.getElementById('add-fee');
@@ -393,10 +415,18 @@
         let currentBalance = 0;
 
         // Function to format date
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-            return date.toLocaleDateString('en-US', options);
+        function formatDate(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                if (isNaN(date.getTime())) {
+                    return "Invalid Date";
+                }
+                const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+                return date.toLocaleDateString('en-US', options);
+            } catch (e) {
+                logDebug("Error formatting date:", e);
+                return "Date Error";
+            }
         }
 
         // Function to format currency
@@ -410,106 +440,136 @@
             totalWithdrawalsElement.textContent = formatCurrency(totalWithdrawals);
             totalBalanceElement.textContent = formatCurrency(currentBalance);
             currentBalanceDisplay.textContent = formatCurrency(currentBalance);
+            logDebug("Totals updated", {
+                income: totalIncome,
+                withdrawals: totalWithdrawals,
+                balance: currentBalance
+            });
         }
 
-        // Function to calculate totals from Realtime Database data
-        async function calculateTotals() {
+        // Function to calculate totals from database
+        function calculateTotals() {
+            logDebug("Starting totals calculation...");
             totalIncome = 0;
             totalWithdrawals = 0;
             
             // Calculate income from class fees
-            const classFeesRef = ref(db, 'classFees');
-            const classFeesSnapshot = await get(classFeesRef);
-            if (classFeesSnapshot.exists()) {
-                classFeesSnapshot.forEach((childSnapshot) => {
-                    totalIncome += parseFloat(childSnapshot.val().amount);
+            const classFeesRef = database.ref('classFees');
+            classFeesRef.once('value', (snapshot) => {
+                logDebug("Class fees data received", snapshot.val());
+                snapshot.forEach((childSnapshot) => {
+                    const amount = parseFloat(childSnapshot.val().amount);
+                    if (!isNaN(amount)) {
+                        totalIncome += amount;
+                    }
                 });
-            }
-            
-            // Calculate income from offerings
-            const offeringsRef = ref(db, 'offerings');
-            const offeringsSnapshot = await get(offeringsRef);
-            if (offeringsSnapshot.exists()) {
-                offeringsSnapshot.forEach((childSnapshot) => {
-                    totalIncome += parseFloat(childSnapshot.val().amount);
+                
+                // Calculate income from offerings
+                const offeringsRef = database.ref('offerings');
+                offeringsRef.once('value', (snapshot) => {
+                    logDebug("Offerings data received", snapshot.val());
+                    snapshot.forEach((childSnapshot) => {
+                        const amount = parseFloat(childSnapshot.val().amount);
+                        if (!isNaN(amount)) {
+                            totalIncome += amount;
+                        }
+                    });
+                    
+                    // Calculate income from food vendors
+                    const foodRef = database.ref('foodVendors');
+                    foodRef.once('value', (snapshot) => {
+                        logDebug("Food vendors data received", snapshot.val());
+                        snapshot.forEach((childSnapshot) => {
+                            const amount = parseFloat(childSnapshot.val().amount);
+                            if (!isNaN(amount)) {
+                                totalIncome += amount;
+                            }
+                        });
+                        
+                        // Calculate total withdrawals
+                        const withdrawalsRef = database.ref('withdrawals');
+                        withdrawalsRef.once('value', (snapshot) => {
+                            logDebug("Withdrawals data received", snapshot.val());
+                            snapshot.forEach((childSnapshot) => {
+                                const amount = parseFloat(childSnapshot.val().amount);
+                                if (!isNaN(amount)) {
+                                    totalWithdrawals += amount;
+                                }
+                            });
+                            
+                            // Calculate current balance
+                            currentBalance = totalIncome - totalWithdrawals;
+                            
+                            // Update display
+                            updateTotalsDisplay();
+                        }).catch((error) => {
+                            logDebug("Error getting withdrawals:", error);
+                            alert("Error calculating totals. Check console for details.");
+                        });
+                    }).catch((error) => {
+                        logDebug("Error getting food vendors:", error);
+                        alert("Error calculating totals. Check console for details.");
+                    });
+                }).catch((error) => {
+                    logDebug("Error getting offerings:", error);
+                    alert("Error calculating totals. Check console for details.");
                 });
-            }
-            
-            // Calculate income from food vendors
-            const foodRef = ref(db, 'foodVendors');
-            const foodSnapshot = await get(foodRef);
-            if (foodSnapshot.exists()) {
-                foodSnapshot.forEach((childSnapshot) => {
-                    totalIncome += parseFloat(childSnapshot.val().amount);
-                });
-            }
-            
-            // Calculate total withdrawals
-            const withdrawalsRef = ref(db, 'withdrawals');
-            const withdrawalsSnapshot = await get(withdrawalsRef);
-            if (withdrawalsSnapshot.exists()) {
-                withdrawalsSnapshot.forEach((childSnapshot) => {
-                    totalWithdrawals += parseFloat(childSnapshot.val().amount);
-                });
-            }
-            
-            // Calculate current balance
-            currentBalance = totalIncome - totalWithdrawals;
-            
-            // Update display
-            updateTotalsDisplay();
+            }).catch((error) => {
+                logDebug("Error getting class fees:", error);
+                alert("Error calculating totals. Check console for details.");
+            });
         }
 
         // Load and display class fees
         function loadClassFees() {
+            logDebug("Loading class fees...");
             const feesTableBody = document.querySelector('#fees-table tbody');
-            const feesQuery = query(ref(db, 'classFees'), orderByChild('date'));
+            const classFeesRef = database.ref('classFees').orderByChild('date');
             
-            onValue(feesQuery, (snapshot) => {
+            classFeesRef.on('value', (snapshot) => {
+                logDebug("Class fees snapshot received", snapshot.val());
                 feesTableBody.innerHTML = '';
                 const fees = [];
                 
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        fees.push({
-                            id: childSnapshot.key,
-                            ...childSnapshot.val()
-                        });
+                snapshot.forEach((childSnapshot) => {
+                    const fee = childSnapshot.val();
+                    fee.id = childSnapshot.key;
+                    fees.unshift(fee); // Add to beginning to show newest first
+                });
+                
+                fees.forEach((fee) => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${formatDate(fee.date)}</td>
+                        <td>${fee.className || 'N/A'}</td>
+                        <td>${formatCurrency(fee.amount || 0)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger delete-fee" data-id="${fee.id}">Delete</button>
+                        </td>
+                    `;
+                    
+                    feesTableBody.appendChild(row);
+                });
+                
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.delete-fee').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const feeId = e.target.getAttribute('data-id');
+                        deleteClassFee(feeId);
                     });
-                    
-                    // Sort by date descending
-                    fees.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    
-                    fees.forEach((fee) => {
-                        const row = document.createElement('tr');
-                        
-                        row.innerHTML = `
-                            <td>${formatDate(fee.date)}</td>
-                            <td>${fee.className}</td>
-                            <td>${formatCurrency(fee.amount)}</td>
-                            <td>
-                                <button class="btn btn-sm btn-danger delete-fee" data-id="${fee.id}">Delete</button>
-                            </td>
-                        `;
-                        
-                        feesTableBody.appendChild(row);
-                    });
-                    
-                    // Add event listeners to delete buttons
-                    document.querySelectorAll('.delete-fee').forEach(button => {
-                        button.addEventListener('click', (e) => {
-                            const feeId = e.target.getAttribute('data-id');
-                            deleteClassFee(feeId);
-                        });
-                    });
-                    
-                    $('#fees-table').DataTable().draw();
-                }
+                });
+                
+                $('#fees-table').DataTable().draw();
+                
+            }, (error) => {
+                logDebug("Error loading class fees:", error);
+                alert("Error loading class fees. Check console for details.");
             });
         }
 
         // Add new class fee
-        addFeeBtn.addEventListener('click', async () => {
+        addFeeBtn.addEventListener('click', () => {
             const classSelect = document.getElementById('class-select');
             const feeAmount = document.getElementById('fee-amount');
             
@@ -521,82 +581,87 @@
             const newFee = {
                 className: classSelect.value,
                 amount: parseFloat(feeAmount.value),
-                date: new Date().toISOString()
+                date: Date.now()
             };
             
-            try {
-                const newFeeRef = push(ref(db, 'classFees'));
-                await set(newFeeRef, newFee);
-                feeAmount.value = '';
-                await calculateTotals();
-            } catch (error) {
-                console.error('Error adding fee:', error);
-                alert('Error adding fee. Please try again.');
-            }
+            logDebug("Adding new class fee:", newFee);
+            database.ref('classFees').push(newFee)
+                .then(() => {
+                    logDebug("Class fee added successfully");
+                    feeAmount.value = '';
+                    calculateTotals();
+                    alert('Class fee added successfully!');
+                })
+                .catch((error) => {
+                    logDebug('Error adding fee:', error);
+                    alert('Error adding fee. Please check console for details.');
+                });
         });
 
         // Delete class fee
-        async function deleteClassFee(feeId) {
+        function deleteClassFee(feeId) {
             if (confirm('Are you sure you want to delete this fee record?')) {
-                try {
-                    await remove(ref(db, `classFees/${feeId}`));
-                    await calculateTotals();
-                } catch (error) {
-                    console.error('Error deleting fee:', error);
-                    alert('Error deleting fee. Please try again.');
-                }
+                logDebug("Deleting class fee with ID:", feeId);
+                database.ref('classFees/' + feeId).remove()
+                    .then(() => {
+                        logDebug("Class fee deleted successfully");
+                        calculateTotals();
+                    })
+                    .catch((error) => {
+                        logDebug('Error deleting fee:', error);
+                        alert('Error deleting fee. Please try again.');
+                    });
             }
         }
 
         // Load and display offerings
         function loadOfferings() {
+            logDebug("Loading offerings...");
             const offeringsTableBody = document.querySelector('#offerings-table tbody');
-            const offeringsQuery = query(ref(db, 'offerings'), orderByChild('date'));
+            const offeringsRef = database.ref('offerings').orderByChild('date');
             
-            onValue(offeringsQuery, (snapshot) => {
+            offeringsRef.on('value', (snapshot) => {
+                logDebug("Offerings snapshot received", snapshot.val());
                 offeringsTableBody.innerHTML = '';
                 const offerings = [];
                 
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        offerings.push({
-                            id: childSnapshot.key,
-                            ...childSnapshot.val()
-                        });
+                snapshot.forEach((childSnapshot) => {
+                    const offering = childSnapshot.val();
+                    offering.id = childSnapshot.key;
+                    offerings.unshift(offering);
+                });
+                
+                offerings.forEach((offering) => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${formatDate(offering.date)}</td>
+                        <td>${formatCurrency(offering.amount || 0)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger delete-offering" data-id="${offering.id}">Delete</button>
+                        </td>
+                    `;
+                    
+                    offeringsTableBody.appendChild(row);
+                });
+                
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.delete-offering').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const offeringId = e.target.getAttribute('data-id');
+                        deleteOffering(offeringId);
                     });
-                    
-                    // Sort by date descending
-                    offerings.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    
-                    offerings.forEach((offering) => {
-                        const row = document.createElement('tr');
-                        
-                        row.innerHTML = `
-                            <td>${formatDate(offering.date)}</td>
-                            <td>${formatCurrency(offering.amount)}</td>
-                            <td>
-                                <button class="btn btn-sm btn-danger delete-offering" data-id="${offering.id}">Delete</button>
-                            </td>
-                        `;
-                        
-                        offeringsTableBody.appendChild(row);
-                    });
-                    
-                    // Add event listeners to delete buttons
-                    document.querySelectorAll('.delete-offering').forEach(button => {
-                        button.addEventListener('click', (e) => {
-                            const offeringId = e.target.getAttribute('data-id');
-                            deleteOffering(offeringId);
-                        });
-                    });
-                    
-                    $('#offerings-table').DataTable().draw();
-                }
+                });
+                
+                $('#offerings-table').DataTable().draw();
+            }, (error) => {
+                logDebug("Error loading offerings:", error);
+                alert("Error loading offerings. Check console for details.");
             });
         }
 
         // Add new offering
-        addOfferingBtn.addEventListener('click', async () => {
+        addOfferingBtn.addEventListener('click', () => {
             const offeringAmount = document.getElementById('offering-amount');
             
             if (!offeringAmount.value || isNaN(offeringAmount.value) || parseFloat(offeringAmount.value) <= 0) {
@@ -606,83 +671,88 @@
             
             const newOffering = {
                 amount: parseFloat(offeringAmount.value),
-                date: new Date().toISOString()
+                date: Date.now()
             };
             
-            try {
-                const newOfferingRef = push(ref(db, 'offerings'));
-                await set(newOfferingRef, newOffering);
-                offeringAmount.value = '';
-                await calculateTotals();
-            } catch (error) {
-                console.error('Error adding offering:', error);
-                alert('Error adding offering. Please try again.');
-            }
+            logDebug("Adding new offering:", newOffering);
+            database.ref('offerings').push(newOffering)
+                .then(() => {
+                    logDebug("Offering added successfully");
+                    offeringAmount.value = '';
+                    calculateTotals();
+                    alert('Offering added successfully!');
+                })
+                .catch((error) => {
+                    logDebug('Error adding offering:', error);
+                    alert('Error adding offering. Please check console for details.');
+                });
         });
 
         // Delete offering
-        async function deleteOffering(offeringId) {
+        function deleteOffering(offeringId) {
             if (confirm('Are you sure you want to delete this offering record?')) {
-                try {
-                    await remove(ref(db, `offerings/${offeringId}`));
-                    await calculateTotals();
-                } catch (error) {
-                    console.error('Error deleting offering:', error);
-                    alert('Error deleting offering. Please try again.');
-                }
+                logDebug("Deleting offering with ID:", offeringId);
+                database.ref('offerings/' + offeringId).remove()
+                    .then(() => {
+                        logDebug("Offering deleted successfully");
+                        calculateTotals();
+                    })
+                    .catch((error) => {
+                        logDebug('Error deleting offering:', error);
+                        alert('Error deleting offering. Please try again.');
+                    });
             }
         }
 
         // Load and display food vendors
         function loadFoodVendors() {
+            logDebug("Loading food vendors...");
             const foodTableBody = document.querySelector('#food-table tbody');
-            const foodQuery = query(ref(db, 'foodVendors'), orderByChild('date'));
+            const foodRef = database.ref('foodVendors').orderByChild('date');
             
-            onValue(foodQuery, (snapshot) => {
+            foodRef.on('value', (snapshot) => {
+                logDebug("Food vendors snapshot received", snapshot.val());
                 foodTableBody.innerHTML = '';
                 const vendors = [];
                 
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        vendors.push({
-                            id: childSnapshot.key,
-                            ...childSnapshot.val()
-                        });
+                snapshot.forEach((childSnapshot) => {
+                    const vendor = childSnapshot.val();
+                    vendor.id = childSnapshot.key;
+                    vendors.unshift(vendor);
+                });
+                
+                vendors.forEach((vendor) => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${formatDate(vendor.date)}</td>
+                        <td>${vendor.vendorName || 'N/A'}</td>
+                        <td>${formatCurrency(vendor.amount || 0)}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger delete-food" data-id="${vendor.id}">Delete</button>
+                        </td>
+                    `;
+                    
+                    foodTableBody.appendChild(row);
+                });
+                
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.delete-food').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const foodId = e.target.getAttribute('data-id');
+                        deleteFoodVendor(foodId);
                     });
-                    
-                    // Sort by date descending
-                    vendors.sort((a, b) => new Date(b.date) - new Date(a.date));
-                    
-                    vendors.forEach((vendor) => {
-                        const row = document.createElement('tr');
-                        
-                        row.innerHTML = `
-                            <td>${formatDate(vendor.date)}</td>
-                            <td>${vendor.vendorName}</td>
-                            <td>${formatCurrency(vendor.amount)}</td>
-                            <td>
-                                <button class="btn btn-sm btn-danger delete-food" data-id="${vendor.id}">Delete</button>
-                            </td>
-                        `;
-                        
-                        foodTableBody.appendChild(row);
-                    });
-                    
-                    // Add event listeners to delete buttons
-                    document.querySelectorAll('.delete-food').forEach(button => {
-                        button.addEventListener('click', (e) => {
-                            const foodId = e.target.getAttribute('data-id');
-                            deleteFoodVendor(foodId);
-                        });
-                    });
-                    
-                    $('#food-table').DataTable().draw();
-                }
+                });
+                
+                $('#food-table').DataTable().draw();
+            }, (error) => {
+                logDebug("Error loading food vendors:", error);
+                alert("Error loading food vendors. Check console for details.");
             });
         }
 
         // Add new food vendor due
-        addFoodBtn.addEventListener('click', async () => {
+        addFoodBtn.addEventListener('click', () => {
             const vendorName = document.getElementById('vendor-name');
             const foodAmount = document.getElementById('food-amount');
             
@@ -699,91 +769,96 @@
             const newFood = {
                 vendorName: vendorName.value.trim(),
                 amount: parseFloat(foodAmount.value),
-                date: new Date().toISOString()
+                date: Date.now()
             };
             
-            try {
-                const newFoodRef = push(ref(db, 'foodVendors'));
-                await set(newFoodRef, newFood);
-                vendorName.value = '';
-                foodAmount.value = '';
-                await calculateTotals();
-            } catch (error) {
-                console.error('Error adding food vendor due:', error);
-                alert('Error adding food vendor due. Please try again.');
-            }
+            logDebug("Adding new food vendor due:", newFood);
+            database.ref('foodVendors').push(newFood)
+                .then(() => {
+                    logDebug("Food vendor due added successfully");
+                    vendorName.value = '';
+                    foodAmount.value = '';
+                    calculateTotals();
+                    alert('Food vendor due added successfully!');
+                })
+                .catch((error) => {
+                    logDebug('Error adding food vendor due:', error);
+                    alert('Error adding food vendor due. Please check console for details.');
+                });
         });
 
         // Delete food vendor due
-        async function deleteFoodVendor(foodId) {
+        function deleteFoodVendor(foodId) {
             if (confirm('Are you sure you want to delete this food vendor record?')) {
-                try {
-                    await remove(ref(db, `foodVendors/${foodId}`));
-                    await calculateTotals();
-                } catch (error) {
-                    console.error('Error deleting food vendor:', error);
-                    alert('Error deleting food vendor. Please try again.');
-                }
+                logDebug("Deleting food vendor with ID:", foodId);
+                database.ref('foodVendors/' + foodId).remove()
+                    .then(() => {
+                        logDebug("Food vendor deleted successfully");
+                        calculateTotals();
+                    })
+                    .catch((error) => {
+                        logDebug('Error deleting food vendor:', error);
+                        alert('Error deleting food vendor. Please try again.');
+                    });
             }
         }
 
         // Load and display withdrawals
         function loadWithdrawals() {
+            logDebug("Loading withdrawals...");
             const withdrawalsTableBody = document.querySelector('#withdrawals-table tbody');
             const withdrawalChat = document.getElementById('withdrawal-chat');
-            const withdrawalsQuery = query(ref(db, 'withdrawals'), orderByChild('date'));
+            const withdrawalsRef = database.ref('withdrawals').orderByChild('date');
             
-            onValue(withdrawalsQuery, (snapshot) => {
+            withdrawalsRef.on('value', (snapshot) => {
+                logDebug("Withdrawals snapshot received", snapshot.val());
                 withdrawalsTableBody.innerHTML = '';
                 withdrawalChat.innerHTML = '';
                 const withdrawals = [];
                 
-                if (snapshot.exists()) {
-                    snapshot.forEach((childSnapshot) => {
-                        withdrawals.push({
-                            id: childSnapshot.key,
-                            ...childSnapshot.val()
-                        });
-                    });
+                snapshot.forEach((childSnapshot) => {
+                    const withdrawal = childSnapshot.val();
+                    withdrawal.id = childSnapshot.key;
+                    withdrawals.unshift(withdrawal);
+                });
+                
+                withdrawals.forEach((withdrawal) => {
+                    // Add to chat
+                    const chatMessage = document.createElement('div');
+                    chatMessage.className = 'chat-message';
                     
-                    // Sort by date descending
-                    withdrawals.sort((a, b) => new Date(b.date) - new Date(a.date));
+                    chatMessage.innerHTML = `
+                        <div class="chat-date">${formatDate(withdrawal.date)}</div>
+                        <div><strong>${withdrawal.name || 'N/A'}</strong> withdrew <span class="chat-amount">${formatCurrency(withdrawal.amount || 0)}</span></div>
+                        <div>Reason: ${withdrawal.reason || 'N/A'}</div>
+                    `;
                     
-                    withdrawals.forEach((withdrawal) => {
-                        // Add to chat
-                        const chatMessage = document.createElement('div');
-                        chatMessage.className = 'chat-message';
-                        
-                        chatMessage.innerHTML = `
-                            <div class="chat-date">${formatDate(withdrawal.date)}</div>
-                            <div><strong>${withdrawal.name}</strong> withdrew <span class="chat-amount">${formatCurrency(withdrawal.amount)}</span></div>
-                            <div>Reason: ${withdrawal.reason}</div>
-                        `;
-                        
-                        withdrawalChat.appendChild(chatMessage);
-                        
-                        // Add to table
-                        const row = document.createElement('tr');
-                        
-                        row.innerHTML = `
-                            <td>${formatDate(withdrawal.date)}</td>
-                            <td>${withdrawal.name}</td>
-                            <td>${formatCurrency(withdrawal.amount)}</td>
-                            <td>${withdrawal.reason}</td>
-                            <td>${formatCurrency(withdrawal.previousBalance)}</td>
-                            <td>${formatCurrency(withdrawal.newBalance)}</td>
-                        `;
-                        
-                        withdrawalsTableBody.appendChild(row);
-                    });
+                    withdrawalChat.appendChild(chatMessage);
                     
-                    $('#withdrawals-table').DataTable().draw();
-                }
+                    // Add to table
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${formatDate(withdrawal.date)}</td>
+                        <td>${withdrawal.name || 'N/A'}</td>
+                        <td>${formatCurrency(withdrawal.amount || 0)}</td>
+                        <td>${withdrawal.reason || 'N/A'}</td>
+                        <td>${formatCurrency(withdrawal.previousBalance || 0)}</td>
+                        <td>${formatCurrency(withdrawal.newBalance || 0)}</td>
+                    `;
+                    
+                    withdrawalsTableBody.appendChild(row);
+                });
+                
+                $('#withdrawals-table').DataTable().draw();
+            }, (error) => {
+                logDebug("Error loading withdrawals:", error);
+                alert("Error loading withdrawals. Check console for details.");
             });
         }
 
         // Make withdrawal
-        confirmWithdrawBtn.addEventListener('click', async () => {
+        confirmWithdrawBtn.addEventListener('click', () => {
             const withdrawerName = document.getElementById('withdrawer-name');
             const withdrawAmount = document.getElementById('withdraw-amount');
             const withdrawReason = document.getElementById('withdraw-reason');
@@ -816,72 +891,49 @@
                 reason: withdrawReason.value.trim(),
                 previousBalance: currentBalance,
                 newBalance: currentBalance - amount,
-                date: new Date().toISOString()
+                date: Date.now()
             };
             
-            try {
-                const newWithdrawalRef = push(ref(db, 'withdrawals'));
-                await set(newWithdrawalRef, newWithdrawal);
-                
-                // Send email notification via Formspree
-                sendWithdrawalEmail(newWithdrawal);
-                
-                // Reset form
-                withdrawerName.value = '';
-                withdrawAmount.value = '';
-                withdrawReason.value = '';
-                
-                // Close modal
-                const modal = bootstrap.Modal.getInstance(document.getElementById('withdrawModal'));
-                modal.hide();
-                
-                // Update totals
-                await calculateTotals();
-            } catch (error) {
-                console.error('Error making withdrawal:', error);
-                alert('Error making withdrawal. Please try again.');
-            }
+            logDebug("Making new withdrawal:", newWithdrawal);
+            database.ref('withdrawals').push(newWithdrawal)
+                .then(() => {
+                    logDebug("Withdrawal added successfully");
+                    
+                    // Reset form
+                    withdrawerName.value = '';
+                    withdrawAmount.value = '';
+                    withdrawReason.value = '';
+                    
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('withdrawModal'));
+                    modal.hide();
+                    
+                    // Update totals
+                    calculateTotals();
+                    
+                    alert('Withdrawal successful!');
+                })
+                .catch((error) => {
+                    logDebug('Error making withdrawal:', error);
+                    alert('Error making withdrawal. Please check console for details.');
+                });
         });
-
-        // Function to send email notification via Formspree
-        function sendWithdrawalEmail(withdrawal) {
-            const formData = new FormData();
-            formData.append('name', withdrawal.name);
-            formData.append('amount', formatCurrency(withdrawal.amount));
-            formData.append('reason', withdrawal.reason);
-            formData.append('previousBalance', formatCurrency(withdrawal.previousBalance));
-            formData.append('newBalance', formatCurrency(withdrawal.newBalance));
-            formData.append('date', formatDate(withdrawal.date));
-            
-            fetch('https://formspree.io/f/YOUR_FORMSPREE_ID', {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    console.error('Error sending email notification');
-                }
-            })
-            .catch(error => {
-                console.error('Error sending email notification:', error);
-            });
-        }
 
         // Initialize the application
         function initApp() {
+            logDebug("Initializing application...");
             loadClassFees();
             loadOfferings();
             loadFoodVendors();
             loadWithdrawals();
             calculateTotals();
             
-            // Update current balance when withdrawal modal is shown
-            document.getElementById('withdrawModal').addEventListener('show.bs.modal', function() {
-                currentBalanceDisplay.textContent = formatCurrency(currentBalance);
+            // Update current balance in withdrawal modal when it opens
+            document.getElementById('withdrawModal').addEventListener('show.bs.modal', function () {
+                document.getElementById('current-balance-display').textContent = formatCurrency(currentBalance);
             });
+            
+            logDebug("Application initialized successfully");
         }
 
         // Start the app when DOM is loaded
