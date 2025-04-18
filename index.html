@@ -25,7 +25,7 @@
             font-size: 1rem;
             font-weight: 600;
         }
-        #total-balance, #total-income, #total-withdrawals {
+        #total-balance, #total-income, #total-Expenses {
             color: #2c3e50;
             font-weight: 700;
         }
@@ -54,6 +54,10 @@
             background-color: #28a745;
             border-color: #28a745;
         }
+        .btn-warning {
+            background-color: #ffc107;
+            border-color: #ffc107;
+        }
         .modal-content {
             border-radius: 10px;
         }
@@ -72,6 +76,7 @@
             padding: 10px;
             border-radius: 5px;
             font-weight: bold;
+            transition: opacity 0.5s ease;
         }
         .connection-good {
             background-color: #d4edda;
@@ -136,9 +141,65 @@
             bottom: 10px;
             left: 10px;
             z-index: 1000;
+            transition: opacity 0.5s ease;
         }
         #restore-data-btn {
             display: none;
+        }
+        .breakdown-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .breakdown-subitem {
+            margin-left: 20px;
+            padding: 5px;
+            background-color: #e9ecef;
+            border-radius: 3px;
+            margin-bottom: 5px;
+        }
+        .breakdown-total {
+            font-weight: bold;
+            border-top: 1px solid #dee2e6;
+            padding-top: 5px;
+            margin-top: 5px;
+        }
+        .recent-titles-container {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .recent-title {
+            display: inline-block;
+            margin-right: 8px;
+            margin-bottom: 8px;
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .recent-title:hover {
+            background-color: #dee2e6;
+        }
+        .recent-title-delete {
+            margin-left: 5px;
+            color: #dc3545;
+            font-size: 0.8em;
+        }
+        .title-total {
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .class-total {
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .hidden-element {
+            opacity: 0;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -167,8 +228,8 @@
             <div class="col-md-4">
                 <div class="card summary-card">
                     <div class="card-body">
-                        <h5 class="card-title">Total Withdrawals</h5>
-                        <h2 id="total-withdrawals">₵0.00</h2>
+                        <h5 class="card-title">Total Expenses</h5>
+                        <h2 id="total-Expenses">₵0.00</h2>
                     </div>
                 </div>
             </div>
@@ -187,10 +248,16 @@
                         <button class="nav-link" id="food-tab" data-bs-toggle="tab" data-bs-target="#food" type="button" role="tab">Food Vendors</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="withdrawals-tab" data-bs-toggle="tab" data-bs-target="#withdrawals" type="button" role="tab">Withdrawals</button>
+                        <button class="nav-link" id="others-tab" data-bs-toggle="tab" data-bs-target="#others" type="button" role="tab">Other Fees</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="Expenses-tab" data-bs-toggle="tab" data-bs-target="#Expenses" type="button" role="tab">Expenses</button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="added-fees-tab" data-bs-toggle="tab" data-bs-target="#added-fees" type="button" role="tab">All Records</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="breakdown-tab" data-bs-toggle="tab" data-bs-target="#breakdown" type="button" role="tab">Breakdown</button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="graph-tab" data-bs-toggle="tab" data-bs-target="#graph" type="button" role="tab">Graph View</button>
@@ -203,15 +270,9 @@
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <select id="class-select" class="form-select">
-                                 <!-- <option value="nursery">Nursery</option>
-                                    <option value="kg1">KG 1</option>
-                                    <option value="kg2">KG 2</option>-->
                                     <option value="Form1">Form 1</option>
                                     <option value="Form2">Form 2</option>
                                     <option value="Form3">Form 3</option>
-                                  <!-- <option value="class4">Class 4</option>
-                                    <option value="class5">Class 5</option>
-                                    <option value="class6">Class 6</option>-->
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -261,13 +322,43 @@
                         </div>
                     </div>
                     
-                    <!-- Withdrawals Tab -->
-                    <div class="tab-pane fade" id="withdrawals" role="tabpanel">
-                        <h3>Withdrawals</h3>
+                    <!-- Other Fees Tab -->
+                    <div class="tab-pane fade" id="others" role="tabpanel">
+                        <h3>Other Fees</h3>
+                        <div class="recent-titles-container" id="recent-titles">
+                            <!-- Recent titles will be loaded here -->
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-3">
+                                <select id="other-class-select" class="form-select">
+                                    <option value="">Select Class (Optional)</option>
+                                    <option value="Form1">Form 1</option>
+                                    <option value="Form2">Form 2</option>
+                                    <option value="Form3">Form 3</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" id="other-title" class="form-control" placeholder="Fee Title">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" id="other-amount" class="form-control" placeholder="Amount">
+                            </div>
+                            <div class="col-md-3">
+                                <button id="add-other" class="btn btn-warning">Add Other Fee</button>
+                            </div>
+                        </div>
+                        <div class="history-container" id="others-history">
+                            <!-- Other fees history will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Expenses Tab -->
+                    <div class="tab-pane fade" id="Expenses" role="tabpanel">
+                        <h3>Expenses</h3>
                         <button id="withdraw-btn" class="btn btn-danger mb-3" data-bs-toggle="modal" data-bs-target="#withdrawModal">Make Withdrawal</button>
                         
-                        <div class="history-container" id="withdrawals-history">
-                            <!-- Withdrawals history will be loaded here -->
+                        <div class="history-container" id="Expenses-history">
+                            <!-- Expenses history will be loaded here -->
                         </div>
                     </div>
                     
@@ -281,6 +372,35 @@
                         </div>
                         <div class="history-container" id="all-records-history">
                             <!-- All records will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Breakdown Tab -->
+                    <div class="tab-pane fade" id="breakdown" role="tabpanel">
+                        <h3>Financial Breakdown</h3>
+                        <button id="refresh-breakdown" class="btn btn-info mb-3">Refresh Breakdown</button>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0">Income Breakdown</h5>
+                                    </div>
+                                    <div class="card-body" id="income-breakdown-detailed">
+                                        <!-- Income breakdown will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-4">
+                                    <div class="card-header bg-danger text-white">
+                                        <h5 class="mb-0">Expenses Breakdown</h5>
+                                    </div>
+                                    <div class="card-body" id="expense-breakdown-detailed">
+                                        <!-- Expense breakdown will be loaded here -->
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -471,12 +591,14 @@
         const addFeeBtn = document.getElementById('add-fee');
         const addOfferingBtn = document.getElementById('add-offering');
         const addFoodBtn = document.getElementById('add-food');
+        const addOtherBtn = document.getElementById('add-other');
         const withdrawBtn = document.getElementById('withdraw-btn');
         const confirmWithdrawBtn = document.getElementById('confirm-withdraw');
         const refreshAddedFeesBtn = document.getElementById('refresh-added-fees');
+        const refreshBreakdownBtn = document.getElementById('refresh-breakdown');
         const totalBalanceElement = document.getElementById('total-balance');
         const totalIncomeElement = document.getElementById('total-income');
-        const totalWithdrawalsElement = document.getElementById('total-withdrawals');
+        const totalExpensesElement = document.getElementById('total-Expenses');
         const currentBalanceDisplay = document.getElementById('current-balance-display');
         const updateChartBtn = document.getElementById('update-chart');
         const totalBalanceHidden = document.getElementById('total-balance-hidden');
@@ -484,14 +606,19 @@
         const restoreDataBtn = document.getElementById('restore-data-btn');
         const confirmClearBtn = document.getElementById('confirm-clear');
         const adminPasswordInput = document.getElementById('admin-password');
+        const recentTitlesContainer = document.getElementById('recent-titles');
+        const otherTitleInput = document.getElementById('other-title');
+        const connectionStatus = document.getElementById('connection-status');
+        const adminControls = document.getElementById('admin-controls');
 
         // Global variables to store totals
         let totalIncome = 0;
-        let totalWithdrawals = 0;
+        let totalExpenses = 0;
         let currentBalance = 0;
         let financialChart = null;
         let backupData = null;
         let backupTimestamp = null;
+        let recentTitles = JSON.parse(localStorage.getItem('recentTitles')) || [];
 
         // Function to format date
         function formatDate(timestamp) {
@@ -516,22 +643,88 @@
         // Function to update totals display
         function updateTotalsDisplay() {
             totalIncomeElement.textContent = formatCurrency(totalIncome);
-            totalWithdrawalsElement.textContent = formatCurrency(totalWithdrawals);
+            totalExpensesElement.textContent = formatCurrency(totalExpenses);
             totalBalanceElement.textContent = formatCurrency(currentBalance);
             currentBalanceDisplay.textContent = formatCurrency(currentBalance);
             totalBalanceHidden.value = formatCurrency(currentBalance);
             logDebug("Totals updated", {
                 income: totalIncome,
-                withdrawals: totalWithdrawals,
+                Expenses: totalExpenses,
                 balance: currentBalance
             });
+        }
+
+        // Function to update recent titles display
+        function updateRecentTitlesDisplay() {
+            recentTitlesContainer.innerHTML = '';
+            
+            if (recentTitles.length > 0) {
+                const titleElement = document.createElement('div');
+                titleElement.className = 'mb-2';
+                titleElement.textContent = 'Recent Titles:';
+                recentTitlesContainer.appendChild(titleElement);
+                
+                recentTitles.forEach((title, index) => {
+                    const titleTag = document.createElement('span');
+                    titleTag.className = 'recent-title';
+                    titleTag.textContent = title;
+                    
+                    // Add delete button
+                    const deleteBtn = document.createElement('span');
+                    deleteBtn.className = 'recent-title-delete';
+                    deleteBtn.textContent = '✕';
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        removeRecentTitle(index);
+                    });
+                    
+                    titleTag.appendChild(deleteBtn);
+                    
+                    // Add click handler to populate the title field
+                    titleTag.addEventListener('click', () => {
+                        otherTitleInput.value = title;
+                        otherTitleInput.focus();
+                    });
+                    
+                    recentTitlesContainer.appendChild(titleTag);
+                });
+            }
+        }
+
+        // Function to add a title to recent titles
+        function addRecentTitle(title) {
+            // Remove if already exists to avoid duplicates
+            recentTitles = recentTitles.filter(t => t !== title);
+            
+            // Add to beginning of array
+            recentTitles.unshift(title);
+            
+            // Keep only the last 10 titles
+            if (recentTitles.length > 10) {
+                recentTitles = recentTitles.slice(0, 10);
+            }
+            
+            // Save to localStorage
+            localStorage.setItem('recentTitles', JSON.stringify(recentTitles));
+            
+            // Update display
+            updateRecentTitlesDisplay();
+        }
+
+        // Function to remove a title from recent titles
+        function removeRecentTitle(index) {
+            if (index >= 0 && index < recentTitles.length) {
+                recentTitles.splice(index, 1);
+                localStorage.setItem('recentTitles', JSON.stringify(recentTitles));
+                updateRecentTitlesDisplay();
+            }
         }
 
         // Function to calculate totals from database
         function calculateTotals() {
             logDebug("Starting totals calculation...");
             totalIncome = 0;
-            totalWithdrawals = 0;
+            totalExpenses = 0;
             
             // Calculate income from class fees
             const classFeesRef = database.ref('classFees');
@@ -566,29 +759,47 @@
                             }
                         });
                         
-                        // Calculate total withdrawals
-                        const withdrawalsRef = database.ref('withdrawals');
-                        withdrawalsRef.once('value', (snapshot) => {
-                            logDebug("Withdrawals data received", snapshot.val());
+                        // Calculate income from other fees
+                        const othersRef = database.ref('otherFees');
+                        othersRef.once('value', (snapshot) => {
+                            logDebug("Other fees data received", snapshot.val());
                             snapshot.forEach((childSnapshot) => {
                                 const amount = parseFloat(childSnapshot.val().amount);
                                 if (!isNaN(amount)) {
-                                    totalWithdrawals += amount;
+                                    totalIncome += amount;
                                 }
                             });
                             
-                            // Calculate current balance
-                            currentBalance = totalIncome - totalWithdrawals;
-                            
-                            // Update display
-                            updateTotalsDisplay();
-                            
-                            // Update the chart if it exists
-                            if (financialChart) {
-                                updateChart();
-                            }
+                            // Calculate total Expenses
+                            const ExpensesRef = database.ref('Expenses');
+                            ExpensesRef.once('value', (snapshot) => {
+                                logDebug("Expenses data received", snapshot.val());
+                                snapshot.forEach((childSnapshot) => {
+                                    const amount = parseFloat(childSnapshot.val().amount);
+                                    if (!isNaN(amount)) {
+                                        totalExpenses += amount;
+                                    }
+                                });
+                                
+                                // Calculate current balance
+                                currentBalance = totalIncome - totalExpenses;
+                                
+                                // Update display
+                                updateTotalsDisplay();
+                                
+                                // Update the chart if it exists
+                                if (financialChart) {
+                                    updateChart();
+                                }
+                                
+                                // Update the breakdown
+                                updateBreakdown();
+                            }).catch((error) => {
+                                logDebug("Error getting Expenses:", error);
+                                alert("Error calculating totals. Check console for details.");
+                            });
                         }).catch((error) => {
-                            logDebug("Error getting withdrawals:", error);
+                            logDebug("Error getting other fees:", error);
                             alert("Error calculating totals. Check console for details.");
                         });
                     }).catch((error) => {
@@ -981,15 +1192,156 @@
             }
         }
 
-        // Load and display withdrawals history
-        function loadWithdrawals() {
-            logDebug("Loading withdrawals...");
-            const withdrawalsHistoryContainer = document.getElementById('withdrawals-history');
-            const withdrawalsRef = database.ref('withdrawals').orderByChild('date');
+        // Load and display other fees history
+        function loadOtherFees() {
+            logDebug("Loading other fees...");
+            const othersHistoryContainer = document.getElementById('others-history');
+            const othersRef = database.ref('otherFees').orderByChild('date');
             
-            withdrawalsRef.on('value', (snapshot) => {
-                logDebug("Withdrawals snapshot received", snapshot.val());
-                withdrawalsHistoryContainer.innerHTML = '';
+            othersRef.on('value', (snapshot) => {
+                logDebug("Other fees snapshot received", snapshot.val());
+                othersHistoryContainer.innerHTML = '';
+                
+                snapshot.forEach((childSnapshot) => {
+                    const other = childSnapshot.val();
+                    other.id = childSnapshot.key;
+                    
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    if (other.deleted) {
+                        historyItem.classList.add('deleted');
+                    }
+                    
+                    historyItem.innerHTML = `
+                        <div>
+                            <div class="history-date">${formatDate(other.date)}</div>
+                            <div><strong>${other.title || 'N/A'}</strong> ${other.className ? ' - ' + other.className : ''}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="history-amount me-3">${formatCurrency(other.amount || 0)}</span>
+                            <span class="history-delete" data-id="${other.id}">✕</span>
+                        </div>
+                    `;
+                    
+                    othersHistoryContainer.prepend(historyItem);
+                });
+                
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.history-delete').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const otherId = e.target.getAttribute('data-id');
+                        deleteOtherFee(otherId);
+                    });
+                });
+                
+            }, (error) => {
+                logDebug("Error loading other fees:", error);
+                alert("Error loading other fees. Check console for details.");
+            });
+        }
+
+        // Add new other fee
+        addOtherBtn.addEventListener('click', () => {
+            const otherTitle = document.getElementById('other-title');
+            const otherAmount = document.getElementById('other-amount');
+            const otherClassSelect = document.getElementById('other-class-select');
+            
+            if (!otherTitle.value.trim()) {
+                alert('Please enter fee title');
+                return;
+            }
+            
+            if (!otherAmount.value || isNaN(otherAmount.value) || parseFloat(otherAmount.value) <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            const newOther = {
+                title: otherTitle.value.trim(),
+                amount: parseFloat(otherAmount.value),
+                date: Date.now(),
+                deleted: false
+            };
+            
+            // Add class if selected
+            if (otherClassSelect.value) {
+                newOther.className = otherClassSelect.value;
+            }
+            
+            logDebug("Adding new other fee:", newOther);
+            database.ref('otherFees').push(newOther)
+                .then(() => {
+                    logDebug("Other fee added successfully");
+                    
+                    // Add title to recent titles
+                    addRecentTitle(otherTitle.value.trim());
+                    
+                    otherTitle.value = '';
+                    otherAmount.value = '';
+                    otherClassSelect.value = '';
+                    calculateTotals();
+                    loadAllRecords(); // Refresh the all records tab
+                    alert('Other fee added successfully!');
+                })
+                .catch((error) => {
+                    logDebug('Error adding other fee:', error);
+                    alert('Error adding other fee. Please check console for details.');
+                });
+        });
+
+        // Delete other fee
+        function deleteOtherFee(otherId) {
+            if (confirm('Are you sure you want to delete this other fee record?')) {
+                logDebug("Marking other fee as deleted with ID:", otherId);
+                
+                // Mark as deleted instead of removing
+                database.ref('otherFees/' + otherId).update({
+                    deleted: true,
+                    deletedAt: Date.now()
+                })
+                .then(() => {
+                    logDebug("Other fee marked as deleted");
+                    
+                    // Fade out the deleted item
+                    const historyItems = document.querySelectorAll('.history-item');
+                    historyItems.forEach(item => {
+                        if (item.querySelector('.history-delete').getAttribute('data-id') === otherId) {
+                            item.classList.add('deleted');
+                        }
+                    });
+                    
+                    // Schedule permanent deletion after 72 hours
+                    setTimeout(() => {
+                        database.ref('otherFees/' + otherId).remove()
+                            .then(() => {
+                                logDebug("Other fee permanently deleted after 72 hours");
+                                calculateTotals();
+                                loadAllRecords();
+                            })
+                            .catch(error => {
+                                logDebug("Error permanently deleting other fee:", error);
+                            });
+                    }, 72 * 60 * 60 * 1000); // 72 hours in milliseconds
+                    
+                    calculateTotals();
+                    loadAllRecords(); // Refresh the all records tab
+                })
+                .catch((error) => {
+                    logDebug('Error deleting other fee:', error);
+                    alert('Error deleting other fee. Please try again.');
+                });
+            }
+        }
+
+        // Load and display Expenses history
+        function loadExpenses() {
+            logDebug("Loading Expenses...");
+            const ExpensesHistoryContainer = document.getElementById('Expenses-history');
+            const ExpensesRef = database.ref('Expenses').orderByChild('date');
+            
+            ExpensesRef.on('value', (snapshot) => {
+                logDebug("Expenses snapshot received", snapshot.val());
+                ExpensesHistoryContainer.innerHTML = '';
                 
                 snapshot.forEach((childSnapshot) => {
                     const withdrawal = childSnapshot.val();
@@ -1013,7 +1365,7 @@
                         </div>
                     `;
                     
-                    withdrawalsHistoryContainer.prepend(historyItem);
+                    ExpensesHistoryContainer.prepend(historyItem);
                 });
                 
                 // Add event listeners to delete buttons
@@ -1025,8 +1377,8 @@
                 });
                 
             }, (error) => {
-                logDebug("Error loading withdrawals:", error);
-                alert("Error loading withdrawals. Check console for details.");
+                logDebug("Error loading Expenses:", error);
+                alert("Error loading Expenses. Check console for details.");
             });
         }
 
@@ -1036,7 +1388,7 @@
                 logDebug("Marking withdrawal as deleted with ID:", withdrawalId);
                 
                 // Mark as deleted instead of removing
-                database.ref('withdrawals/' + withdrawalId).update({
+                database.ref('Expenses/' + withdrawalId).update({
                     deleted: true,
                     deletedAt: Date.now()
                 })
@@ -1053,7 +1405,7 @@
                     
                     // Schedule permanent deletion after 72 hours
                     setTimeout(() => {
-                        database.ref('withdrawals/' + withdrawalId).remove()
+                        database.ref('Expenses/' + withdrawalId).remove()
                             .then(() => {
                                 logDebug("Withdrawal permanently deleted after 72 hours");
                                 calculateTotals();
@@ -1149,32 +1501,58 @@
                             allRecordsContainer.prepend(historyItem);
                         });
                         
-                        // Load withdrawals
-                        database.ref('withdrawals').orderByChild('date').once('value', (withdrawalsSnapshot) => {
-                            withdrawalsSnapshot.forEach((childSnapshot) => {
-                                const withdrawal = childSnapshot.val();
-                                withdrawal.id = childSnapshot.key;
+                        // Load other fees
+                        database.ref('otherFees').orderByChild('date').once('value', (otherFeesSnapshot) => {
+                            otherFeesSnapshot.forEach((childSnapshot) => {
+                                const other = childSnapshot.val();
+                                other.id = childSnapshot.key;
                                 
                                 const historyItem = document.createElement('div');
                                 historyItem.className = 'history-item';
-                                if (withdrawal.deleted) {
+                                if (other.deleted) {
                                     historyItem.classList.add('deleted');
                                 }
                                 
                                 historyItem.innerHTML = `
                                     <div>
-                                        <div class="history-date">${formatDate(withdrawal.date)}</div>
-                                        <div><strong>Withdrawal</strong> - ${withdrawal.name || 'N/A'}</div>
-                                        <div>Reason: ${withdrawal.reason || 'N/A'}</div>
+                                        <div class="history-date">${formatDate(other.date)}</div>
+                                        <div><strong>Other Fee</strong> - ${other.title || 'N/A'} ${other.className ? ' - ' + other.className : ''}</div>
                                     </div>
-                                    <div class="history-amount text-danger">-${formatCurrency(withdrawal.amount || 0)}</div>
+                                    <div class="history-amount text-success">+${formatCurrency(other.amount || 0)}</div>
                                 `;
                                 
                                 allRecordsContainer.prepend(historyItem);
                             });
                             
+                            // Load Expenses
+                            database.ref('Expenses').orderByChild('date').once('value', (ExpensesSnapshot) => {
+                                ExpensesSnapshot.forEach((childSnapshot) => {
+                                    const withdrawal = childSnapshot.val();
+                                    withdrawal.id = childSnapshot.key;
+                                    
+                                    const historyItem = document.createElement('div');
+                                    historyItem.className = 'history-item';
+                                    if (withdrawal.deleted) {
+                                        historyItem.classList.add('deleted');
+                                    }
+                                    
+                                    historyItem.innerHTML = `
+                                        <div>
+                                            <div class="history-date">${formatDate(withdrawal.date)}</div>
+                                            <div><strong>Withdrawal</strong> - ${withdrawal.name || 'N/A'}</div>
+                                            <div>Reason: ${withdrawal.reason || 'N/A'}</div>
+                                        </div>
+                                        <div class="history-amount text-danger">-${formatCurrency(withdrawal.amount || 0)}</div>
+                                    `;
+                                    
+                                    allRecordsContainer.prepend(historyItem);
+                                });
+                                
+                            }).catch((error) => {
+                                logDebug("Error loading Expenses for all records:", error);
+                            });
                         }).catch((error) => {
-                            logDebug("Error loading withdrawals for all records:", error);
+                            logDebug("Error loading other fees for all records:", error);
                         });
                     }).catch((error) => {
                         logDebug("Error loading food vendors for all records:", error);
@@ -1184,6 +1562,243 @@
                 });
             }).catch((error) => {
                 logDebug("Error loading class fees for all records:", error);
+            });
+        }
+
+        // Update the financial breakdown
+        function updateBreakdown() {
+            logDebug("Updating financial breakdown...");
+            
+            const incomeBreakdownContainer = document.getElementById('income-breakdown-detailed');
+            const expenseBreakdownContainer = document.getElementById('expense-breakdown-detailed');
+            
+            // Fetch all data
+            Promise.all([
+                database.ref('classFees').once('value'),
+                database.ref('offerings').once('value'),
+                database.ref('foodVendors').once('value'),
+                database.ref('otherFees').once('value'),
+                database.ref('Expenses').once('value')
+            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, otherFeesSnapshot, ExpensesSnapshot]) => {
+                // Process income data
+                const incomeByType = {
+                    'Class Fees': { total: 0, breakdown: {}, classTotals: {} },
+                    'Church Offerings': { total: 0 },
+                    'Food Vendors': { total: 0 },
+                    'Other Fees': { total: 0, breakdown: {}, titleTotals: {} }
+                };
+                
+                // Process class fees
+                classFeesSnapshot.forEach((childSnapshot) => {
+                    const fee = childSnapshot.val();
+                    if (!fee.deleted) {
+                        const className = fee.className || 'Unknown';
+                        const amount = parseFloat(fee.amount) || 0;
+                        
+                        incomeByType['Class Fees'].total += amount;
+                        
+                        // Track by class
+                        if (!incomeByType['Class Fees'].breakdown[className]) {
+                            incomeByType['Class Fees'].breakdown[className] = 0;
+                        }
+                        incomeByType['Class Fees'].breakdown[className] += amount;
+                        
+                        // Track class totals
+                        if (!incomeByType['Class Fees'].classTotals[className]) {
+                            incomeByType['Class Fees'].classTotals[className] = 0;
+                        }
+                        incomeByType['Class Fees'].classTotals[className] += amount;
+                    }
+                });
+                
+                // Process offerings
+                offeringsSnapshot.forEach((childSnapshot) => {
+                    const offering = childSnapshot.val();
+                    if (!offering.deleted) {
+                        const amount = parseFloat(offering.amount) || 0;
+                        incomeByType['Church Offerings'].total += amount;
+                    }
+                });
+                
+                // Process food vendors
+                foodVendorsSnapshot.forEach((childSnapshot) => {
+                    const vendor = childSnapshot.val();
+                    if (!vendor.deleted) {
+                        const amount = parseFloat(vendor.amount) || 0;
+                        incomeByType['Food Vendors'].total += amount;
+                    }
+                });
+                
+                // Process other fees
+                otherFeesSnapshot.forEach((childSnapshot) => {
+                    const other = childSnapshot.val();
+                    if (!other.deleted) {
+                        const title = other.title || 'Unknown';
+                        const amount = parseFloat(other.amount) || 0;
+                        
+                        incomeByType['Other Fees'].total += amount;
+                        
+                        // Track by title and class if available
+                        const breakdownKey = other.className ? `${title} (${other.className})` : title;
+                        
+                        if (!incomeByType['Other Fees'].breakdown[breakdownKey]) {
+                            incomeByType['Other Fees'].breakdown[breakdownKey] = 0;
+                        }
+                        incomeByType['Other Fees'].breakdown[breakdownKey] += amount;
+                        
+                        // Track title totals
+                        if (!incomeByType['Other Fees'].titleTotals[title]) {
+                            incomeByType['Other Fees'].titleTotals[title] = 0;
+                        }
+                        incomeByType['Other Fees'].titleTotals[title] += amount;
+                    }
+                });
+                
+                // Process Expenses
+                let totalExpenses = 0;
+                ExpensesSnapshot.forEach((childSnapshot) => {
+                    const withdrawal = childSnapshot.val();
+                    if (!withdrawal.deleted) {
+                        const amount = parseFloat(withdrawal.amount) || 0;
+                        totalExpenses += amount;
+                    }
+                });
+                
+                // Update income breakdown display
+                incomeBreakdownContainer.innerHTML = '';
+                
+                // Class Fees Breakdown
+                const classFeesItem = document.createElement('div');
+                classFeesItem.className = 'breakdown-item';
+                
+                let classFeesContent = `
+                    <div class="d-flex justify-content-between">
+                        <strong>Class Fees</strong>
+                        <span class="positive-amount">${formatCurrency(incomeByType['Class Fees'].total)}</span>
+                    </div>
+                `;
+                
+                // Add class totals
+                for (const [className, total] of Object.entries(incomeByType['Class Fees'].classTotals)) {
+                    classFeesContent += `
+                        <div class="breakdown-subitem d-flex justify-content-between">
+                            <span>${className} Total</span>
+                            <span class="positive-amount">${formatCurrency(total)}</span>
+                        </div>
+                    `;
+                }
+                
+                // Add individual class fees
+                for (const [className, amount] of Object.entries(incomeByType['Class Fees'].breakdown)) {
+                    classFeesContent += `
+                        <div class="breakdown-subitem d-flex justify-content-between">
+                            <span>${className}</span>
+                            <span class="positive-amount">${formatCurrency(amount)}</span>
+                        </div>
+                    `;
+                }
+                
+                classFeesItem.innerHTML = classFeesContent;
+                incomeBreakdownContainer.appendChild(classFeesItem);
+                
+                // Church Offerings Breakdown
+                const offeringsItem = document.createElement('div');
+                offeringsItem.className = 'breakdown-item';
+                offeringsItem.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <strong>Church Offerings</strong>
+                        <span class="positive-amount">${formatCurrency(incomeByType['Church Offerings'].total)}</span>
+                    </div>
+                `;
+                incomeBreakdownContainer.appendChild(offeringsItem);
+                
+                // Food Vendors Breakdown
+                const foodVendorsItem = document.createElement('div');
+                foodVendorsItem.className = 'breakdown-item';
+                foodVendorsItem.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <strong>Food Vendors</strong>
+                        <span class="positive-amount">${formatCurrency(incomeByType['Food Vendors'].total)}</span>
+                    </div>
+                `;
+                incomeBreakdownContainer.appendChild(foodVendorsItem);
+                
+                // Other Fees Breakdown
+                const otherFeesItem = document.createElement('div');
+                otherFeesItem.className = 'breakdown-item';
+                
+                let otherFeesContent = `
+                    <div class="d-flex justify-content-between">
+                        <strong>Other Fees</strong>
+                        <span class="positive-amount">${formatCurrency(incomeByType['Other Fees'].total)}</span>
+                    </div>
+                `;
+                
+                // Add title totals
+                for (const [title, total] of Object.entries(incomeByType['Other Fees'].titleTotals)) {
+                    otherFeesContent += `
+                        <div class="breakdown-subitem d-flex justify-content-between">
+                            <span>${title} Total</span>
+                            <span class="positive-amount">${formatCurrency(total)}</span>
+                        </div>
+                    `;
+                }
+                
+                // Add individual other fees
+                for (const [breakdownKey, amount] of Object.entries(incomeByType['Other Fees'].breakdown)) {
+                    otherFeesContent += `
+                        <div class="breakdown-subitem d-flex justify-content-between">
+                            <span>${breakdownKey}</span>
+                            <span class="positive-amount">${formatCurrency(amount)}</span>
+                        </div>
+                    `;
+                }
+                
+                otherFeesItem.innerHTML = otherFeesContent;
+                incomeBreakdownContainer.appendChild(otherFeesItem);
+                
+                // Add total income
+                const totalIncome = Object.values(incomeByType).reduce((sum, item) => sum + item.total, 0);
+                const totalIncomeItem = document.createElement('div');
+                totalIncomeItem.className = 'breakdown-item breakdown-total';
+                totalIncomeItem.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <strong>Total Income</strong>
+                        <span class="positive-amount">${formatCurrency(totalIncome)}</span>
+                    </div>
+                `;
+                incomeBreakdownContainer.appendChild(totalIncomeItem);
+                
+                // Update expense breakdown display
+                expenseBreakdownContainer.innerHTML = '';
+                
+                const expenseItem = document.createElement('div');
+                expenseItem.className = 'breakdown-item';
+                expenseItem.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <strong>Expenses</strong>
+                        <span class="negative-amount">${formatCurrency(totalExpenses)}</span>
+                    </div>
+                `;
+                expenseBreakdownContainer.appendChild(expenseItem);
+                
+                // Add net balance
+                const netBalance = totalIncome - totalExpenses;
+                const netBalanceItem = document.createElement('div');
+                netBalanceItem.className = 'breakdown-item breakdown-total';
+                netBalanceItem.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <strong>Net Balance</strong>
+                        <span class="${netBalance >= 0 ? 'positive-amount' : 'negative-amount'}">
+                            ${formatCurrency(netBalance)}
+                        </span>
+                    </div>
+                `;
+                expenseBreakdownContainer.appendChild(netBalanceItem);
+                
+            }).catch(error => {
+                logDebug("Error fetching data for breakdown:", error);
+                alert("Error loading data for breakdown. Check console for details.");
             });
         }
 
@@ -1228,7 +1843,7 @@
             logDebug("Making new withdrawal:", newWithdrawal);
             
             // Save to Firebase
-            database.ref('withdrawals').push(newWithdrawal)
+            database.ref('Expenses').push(newWithdrawal)
                 .then(() => {
                     logDebug("Withdrawal added successfully to Firebase");
                     
@@ -1257,6 +1872,11 @@
             loadAllRecords();
         });
 
+        // Refresh breakdown button
+        refreshBreakdownBtn.addEventListener('click', () => {
+            updateBreakdown();
+        });
+
         // Function to update the financial chart
         function updateChart() {
             logDebug("Updating financial chart...");
@@ -1271,8 +1891,9 @@
                 database.ref('classFees').orderByChild('date').once('value'),
                 database.ref('offerings').orderByChild('date').once('value'),
                 database.ref('foodVendors').orderByChild('date').once('value'),
-                database.ref('withdrawals').orderByChild('date').once('value')
-            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, withdrawalsSnapshot]) => {
+                database.ref('otherFees').orderByChild('date').once('value'),
+                database.ref('Expenses').orderByChild('date').once('value')
+            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, otherFeesSnapshot, ExpensesSnapshot]) => {
                 // Process data
                 const incomeData = [];
                 const expenseData = [];
@@ -1280,7 +1901,8 @@
                 const incomeByType = {
                     'Class Fees': 0,
                     'Church Offerings': 0,
-                    'Food Vendors': 0
+                    'Food Vendors': 0,
+                    'Other Fees': 0
                 };
                 let totalExpenses = 0;
                 
@@ -1350,8 +1972,30 @@
                     }
                 });
                 
-                // Process withdrawals
-                withdrawalsSnapshot.forEach((childSnapshot) => {
+                // Process other fees
+                otherFeesSnapshot.forEach((childSnapshot) => {
+                    const other = childSnapshot.val();
+                    if ((timePeriod === 0 || other.date >= cutoffDate) && !other.deleted) {
+                        const date = new Date(other.date);
+                        const dateStr = date.toLocaleDateString();
+                        
+                        if (!labels.includes(dateStr)) {
+                            labels.push(dateStr);
+                        }
+                        
+                        incomeData.push({
+                            date: other.date,
+                            amount: other.amount,
+                            dateStr: dateStr,
+                            type: 'Other Fees'
+                        });
+                        
+                        incomeByType['Other Fees'] += other.amount;
+                    }
+                });
+                
+                // Process Expenses
+                ExpensesSnapshot.forEach((childSnapshot) => {
                     const withdrawal = childSnapshot.val();
                     if ((timePeriod === 0 || withdrawal.date >= cutoffDate) && !withdrawal.deleted) {
                         const date = new Date(withdrawal.date);
@@ -1508,7 +2152,7 @@
             expenseItem.className = 'mb-2';
             expenseItem.innerHTML = `
                 <div class="d-flex justify-content-between">
-                    <span>Total Withdrawals:</span>
+                    <span>Total Expenses:</span>
                     <span class="negative-amount">${formatCurrency(totalExpenses)}</span>
                 </div>
             `;
@@ -1549,13 +2193,15 @@
                 database.ref('classFees').once('value'),
                 database.ref('offerings').once('value'),
                 database.ref('foodVendors').once('value'),
-                database.ref('withdrawals').once('value')
-            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, withdrawalsSnapshot]) => {
+                database.ref('otherFees').once('value'),
+                database.ref('Expenses').once('value')
+            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, otherFeesSnapshot, ExpensesSnapshot]) => {
                 backupData = {
                     classFees: classFeesSnapshot.val(),
                     offerings: offeringsSnapshot.val(),
                     foodVendors: foodVendorsSnapshot.val(),
-                    withdrawals: withdrawalsSnapshot.val(),
+                    otherFees: otherFeesSnapshot.val(),
+                    Expenses: ExpensesSnapshot.val(),
                     timestamp: Date.now()
                 };
                 
@@ -1568,7 +2214,8 @@
                     database.ref('classFees').remove(),
                     database.ref('offerings').remove(),
                     database.ref('foodVendors').remove(),
-                    database.ref('withdrawals').remove()
+                    database.ref('otherFees').remove(),
+                    database.ref('Expenses').remove()
                 ]);
             }).then(() => {
                 logDebug("All data deleted successfully");
@@ -1639,8 +2286,12 @@
                 promises.push(database.ref('foodVendors').set(backupData.foodVendors));
             }
             
-            if (backupData.withdrawals) {
-                promises.push(database.ref('withdrawals').set(backupData.withdrawals));
+            if (backupData.otherFees) {
+                promises.push(database.ref('otherFees').set(backupData.otherFees));
+            }
+            
+            if (backupData.Expenses) {
+                promises.push(database.ref('Expenses').set(backupData.Expenses));
             }
             
             Promise.all(promises).then(() => {
@@ -1707,10 +2358,13 @@
             loadClassFees();
             loadOfferings();
             loadFoodVendors();
-            loadWithdrawals();
+            loadOtherFees();
+            loadExpenses();
             loadAllRecords();
             calculateTotals();
+            updateBreakdown();
             checkForBackup();
+            updateRecentTitlesDisplay();
             
             // Update current balance in withdrawal modal when it opens
             document.getElementById('withdrawModal').addEventListener('show.bs.modal', function () {
@@ -1724,6 +2378,17 @@
                     updateChart();
                 }
             });
+            
+            // Update breakdown when breakdown tab is shown
+            document.getElementById('breakdown-tab').addEventListener('shown.bs.tab', function () {
+                updateBreakdown();
+            });
+            
+            // Hide admin controls and connection status after 5 seconds
+            setTimeout(() => {
+                adminControls.classList.add('hidden-element');
+                connectionStatus.classList.add('hidden-element');
+            }, 5000);
             
             logDebug("Application initialized successfully");
         }
