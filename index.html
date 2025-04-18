@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>School Financial Tracker</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             background-color: #f8f9fa;
@@ -38,44 +38,6 @@
             background-color: #fff;
             border-color: #dee2e6 #dee2e6 #fff;
         }
-        .table {
-            margin-top: 20px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-        }
-        .chat-container {
-            background-color: #f8f9fa;
-            border-radius: 10px;
-            padding: 15px;
-            max-height: 300px;
-            overflow-y: auto;
-            border: 1px solid #dee2e6;
-        }
-        .chat-message {
-            background-color: #e9ecef;
-            border-radius: 10px;
-            padding: 10px 15px;
-            margin-bottom: 10px;
-            position: relative;
-        }
-        .chat-message:after {
-            content: '';
-            position: absolute;
-            left: 20px;
-            top: -10px;
-            width: 0;
-            height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-bottom: 10px solid #e9ecef;
-        }
-        .chat-date {
-            font-size: 0.8rem;
-            color: #6c757d;
-        }
-        .chat-amount {
-            font-weight: bold;
-            color: #dc3545;
-        }
         .btn-primary {
             background-color: #0d6efd;
             border-color: #0d6efd;
@@ -87,6 +49,10 @@
         .btn-info {
             background-color: #17a2b8;
             border-color: #17a2b8;
+        }
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
         }
         .modal-content {
             border-radius: 10px;
@@ -115,10 +81,50 @@
             background-color: #f8d7da;
             color: #721c24;
         }
-        .fees-details-container {
-            max-height: 500px;
+        .history-container {
+            max-height: 400px;
             overflow-y: auto;
             margin-top: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+        }
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .history-date {
+            color: #6c757d;
+            font-size: 0.85rem;
+        }
+        .history-amount {
+            font-weight: bold;
+        }
+        .history-delete {
+            color: #dc3545;
+            cursor: pointer;
+        }
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+        }
+        .chart-controls {
+            margin-bottom: 20px;
+        }
+        .chart-type-selector {
+            margin-bottom: 10px;
+        }
+        .positive-amount {
+            color: #28a745;
+        }
+        .negative-amount {
+            color: #dc3545;
         }
     </style>
 </head>
@@ -170,7 +176,10 @@
                         <button class="nav-link" id="withdrawals-tab" data-bs-toggle="tab" data-bs-target="#withdrawals" type="button" role="tab">Withdrawals</button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="added-fees-tab" data-bs-toggle="tab" data-bs-target="#added-fees" type="button" role="tab">Added Fees</button>
+                        <button class="nav-link" id="added-fees-tab" data-bs-toggle="tab" data-bs-target="#added-fees" type="button" role="tab">All Records</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="graph-tab" data-bs-toggle="tab" data-bs-target="#graph" type="button" role="tab">Graph View</button>
                     </li>
                 </ul>
                 <div class="tab-content p-3 border border-top-0 rounded-bottom" id="myTabContent">
@@ -198,20 +207,8 @@
                                 <button id="add-fee" class="btn btn-primary">Add Fee</button>
                             </div>
                         </div>
-                        <div class="table-responsive">
-                            <table id="fees-table" class="table table-striped table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Class</th>
-                                        <th>Amount</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Data will be loaded here -->
-                                </tbody>
-                            </table>
+                        <div class="history-container" id="fees-history">
+                            <!-- Class fees history will be loaded here -->
                         </div>
                     </div>
                     
@@ -226,19 +223,8 @@
                                 <button id="add-offering" class="btn btn-primary">Add Offering</button>
                             </div>
                         </div>
-                        <div class="table-responsive">
-                            <table id="offerings-table" class="table table-striped table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Week Ending</th>
-                                        <th>Amount</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Data will be loaded here -->
-                                </tbody>
-                            </table>
+                        <div class="history-container" id="offerings-history">
+                            <!-- Offerings history will be loaded here -->
                         </div>
                     </div>
                     
@@ -256,20 +242,8 @@
                                 <button id="add-food" class="btn btn-primary">Add Vendor Due</button>
                             </div>
                         </div>
-                        <div class="table-responsive">
-                            <table id="food-table" class="table table-striped table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Vendor Name</th>
-                                        <th>Amount</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Data will be loaded here -->
-                                </tbody>
-                            </table>
+                        <div class="history-container" id="food-history">
+                            <!-- Food vendors history will be loaded here -->
                         </div>
                     </div>
                     
@@ -278,54 +252,75 @@
                         <h3>Withdrawals</h3>
                         <button id="withdraw-btn" class="btn btn-danger mb-3" data-bs-toggle="modal" data-bs-target="#withdrawModal">Make Withdrawal</button>
                         
-                        <div class="mb-4">
-                            <h4>Withdrawal History</h4>
-                            <div id="withdrawal-chat" class="chat-container">
-                                <!-- Chat messages will be loaded here -->
-                            </div>
-                        </div>
-                        
-                        <div class="table-responsive">
-                            <table id="withdrawals-table" class="table table-striped table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Name</th>
-                                        <th>Amount</th>
-                                        <th>Reason</th>
-                                        <th>Previous Balance</th>
-                                        <th>New Balance</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Data will be loaded here -->
-                                </tbody>
-                            </table>
+                        <div class="history-container" id="withdrawals-history">
+                            <!-- Withdrawals history will be loaded here -->
                         </div>
                     </div>
                     
-                    <!-- Added Fees Tab -->
+                    <!-- All Records Tab -->
                     <div class="tab-pane fade" id="added-fees" role="tabpanel">
-                        <h3>All Added Fees</h3>
+                        <h3>All Financial Records</h3>
                         <div class="row mb-3">
                             <div class="col-md-6">
                                 <button id="refresh-added-fees" class="btn btn-info">Refresh Data</button>
                             </div>
                         </div>
-                        <div class="table-responsive">
-                            <table id="added-fees-table" class="table table-striped table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Type</th>
-                                        <th>Description</th>
-                                        <th>Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Data will be loaded here -->
-                                </tbody>
-                            </table>
+                        <div class="history-container" id="all-records-history">
+                            <!-- All records will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Graph Tab -->
+                    <div class="tab-pane fade" id="graph" role="tabpanel">
+                        <h3>Financial Activities Graph</h3>
+                        <div class="chart-controls">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <select id="time-period" class="form-select">
+                                        <option value="7">Last 7 Days</option>
+                                        <option value="30" selected>Last 30 Days</option>
+                                        <option value="90">Last 90 Days</option>
+                                        <option value="180">Last 6 Months</option>
+                                        <option value="365">Last Year</option>
+                                        <option value="0">All Time</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select id="chart-type" class="form-select">
+                                        <option value="bar">Bar Chart</option>
+                                        <option value="line" selected>Line Chart</option>
+                                        <option value="pie">Pie Chart</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <button id="update-chart" class="btn btn-success">Update Chart</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="financialChart"></canvas>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Income Breakdown</h5>
+                                        <div id="income-breakdown">
+                                            <!-- Will be populated by JavaScript -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Expense Breakdown</h5>
+                                        <div id="expense-breakdown">
+                                            <!-- Will be populated by JavaScript -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -374,8 +369,6 @@
     <!-- Firebase and other scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -439,20 +432,13 @@
         const totalIncomeElement = document.getElementById('total-income');
         const totalWithdrawalsElement = document.getElementById('total-withdrawals');
         const currentBalanceDisplay = document.getElementById('current-balance-display');
-
-        // Initialize DataTables
-        $(document).ready(function() {
-            $('#fees-table').DataTable();
-            $('#offerings-table').DataTable();
-            $('#food-table').DataTable();
-            $('#withdrawals-table').DataTable();
-            $('#added-fees-table').DataTable();
-        });
+        const updateChartBtn = document.getElementById('update-chart');
 
         // Global variables to store totals
         let totalIncome = 0;
         let totalWithdrawals = 0;
         let currentBalance = 0;
+        let financialChart = null;
 
         // Function to format date
         function formatDate(timestamp) {
@@ -542,6 +528,11 @@
                             
                             // Update display
                             updateTotalsDisplay();
+                            
+                            // Update the chart if it exists
+                            if (financialChart) {
+                                updateChart();
+                            }
                         }).catch((error) => {
                             logDebug("Error getting withdrawals:", error);
                             alert("Error calculating totals. Check console for details.");
@@ -560,47 +551,44 @@
             });
         }
 
-        // Load and display class fees
+        // Load and display class fees history
         function loadClassFees() {
             logDebug("Loading class fees...");
-            const feesTableBody = document.querySelector('#fees-table tbody');
+            const feesHistoryContainer = document.getElementById('fees-history');
             const classFeesRef = database.ref('classFees').orderByChild('date');
             
             classFeesRef.on('value', (snapshot) => {
                 logDebug("Class fees snapshot received", snapshot.val());
-                feesTableBody.innerHTML = '';
-                const fees = [];
+                feesHistoryContainer.innerHTML = '';
                 
                 snapshot.forEach((childSnapshot) => {
                     const fee = childSnapshot.val();
                     fee.id = childSnapshot.key;
-                    fees.unshift(fee); // Add to beginning to show newest first
-                });
-                
-                fees.forEach((fee) => {
-                    const row = document.createElement('tr');
                     
-                    row.innerHTML = `
-                        <td>${formatDate(fee.date)}</td>
-                        <td>${fee.className || 'N/A'}</td>
-                        <td>${formatCurrency(fee.amount || 0)}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger delete-fee" data-id="${fee.id}">Delete</button>
-                        </td>
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    historyItem.innerHTML = `
+                        <div>
+                            <div class="history-date">${formatDate(fee.date)}</div>
+                            <div>${fee.className || 'N/A'}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="history-amount me-3">${formatCurrency(fee.amount || 0)}</span>
+                            <span class="history-delete" data-id="${fee.id}">✕</span>
+                        </div>
                     `;
                     
-                    feesTableBody.appendChild(row);
+                    feesHistoryContainer.prepend(historyItem);
                 });
                 
                 // Add event listeners to delete buttons
-                document.querySelectorAll('.delete-fee').forEach(button => {
+                document.querySelectorAll('.history-delete').forEach(button => {
                     button.addEventListener('click', (e) => {
                         const feeId = e.target.getAttribute('data-id');
                         deleteClassFee(feeId);
                     });
                 });
-                
-                $('#fees-table').DataTable().draw();
                 
             }, (error) => {
                 logDebug("Error loading class fees:", error);
@@ -630,7 +618,7 @@
                     logDebug("Class fee added successfully");
                     feeAmount.value = '';
                     calculateTotals();
-                    loadAddedFees(); // Refresh the added fees tab
+                    loadAllRecords(); // Refresh the all records tab
                     alert('Class fee added successfully!');
                 })
                 .catch((error) => {
@@ -647,7 +635,7 @@
                     .then(() => {
                         logDebug("Class fee deleted successfully");
                         calculateTotals();
-                        loadAddedFees(); // Refresh the added fees tab
+                        loadAllRecords(); // Refresh the all records tab
                     })
                     .catch((error) => {
                         logDebug('Error deleting fee:', error);
@@ -656,46 +644,45 @@
             }
         }
 
-        // Load and display offerings
+        // Load and display offerings history
         function loadOfferings() {
             logDebug("Loading offerings...");
-            const offeringsTableBody = document.querySelector('#offerings-table tbody');
+            const offeringsHistoryContainer = document.getElementById('offerings-history');
             const offeringsRef = database.ref('offerings').orderByChild('date');
             
             offeringsRef.on('value', (snapshot) => {
                 logDebug("Offerings snapshot received", snapshot.val());
-                offeringsTableBody.innerHTML = '';
-                const offerings = [];
+                offeringsHistoryContainer.innerHTML = '';
                 
                 snapshot.forEach((childSnapshot) => {
                     const offering = childSnapshot.val();
                     offering.id = childSnapshot.key;
-                    offerings.unshift(offering);
-                });
-                
-                offerings.forEach((offering) => {
-                    const row = document.createElement('tr');
                     
-                    row.innerHTML = `
-                        <td>${formatDate(offering.date)}</td>
-                        <td>${formatCurrency(offering.amount || 0)}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger delete-offering" data-id="${offering.id}">Delete</button>
-                        </td>
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    historyItem.innerHTML = `
+                        <div>
+                            <div class="history-date">${formatDate(offering.date)}</div>
+                            <div>Church Offering</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="history-amount me-3">${formatCurrency(offering.amount || 0)}</span>
+                            <span class="history-delete" data-id="${offering.id}">✕</span>
+                        </div>
                     `;
                     
-                    offeringsTableBody.appendChild(row);
+                    offeringsHistoryContainer.prepend(historyItem);
                 });
                 
                 // Add event listeners to delete buttons
-                document.querySelectorAll('.delete-offering').forEach(button => {
+                document.querySelectorAll('.history-delete').forEach(button => {
                     button.addEventListener('click', (e) => {
                         const offeringId = e.target.getAttribute('data-id');
                         deleteOffering(offeringId);
                     });
                 });
                 
-                $('#offerings-table').DataTable().draw();
             }, (error) => {
                 logDebug("Error loading offerings:", error);
                 alert("Error loading offerings. Check console for details.");
@@ -722,7 +709,7 @@
                     logDebug("Offering added successfully");
                     offeringAmount.value = '';
                     calculateTotals();
-                    loadAddedFees(); // Refresh the added fees tab
+                    loadAllRecords(); // Refresh the all records tab
                     alert('Offering added successfully!');
                 })
                 .catch((error) => {
@@ -739,7 +726,7 @@
                     .then(() => {
                         logDebug("Offering deleted successfully");
                         calculateTotals();
-                        loadAddedFees(); // Refresh the added fees tab
+                        loadAllRecords(); // Refresh the all records tab
                     })
                     .catch((error) => {
                         logDebug('Error deleting offering:', error);
@@ -748,47 +735,45 @@
             }
         }
 
-        // Load and display food vendors
+        // Load and display food vendors history
         function loadFoodVendors() {
             logDebug("Loading food vendors...");
-            const foodTableBody = document.querySelector('#food-table tbody');
+            const foodHistoryContainer = document.getElementById('food-history');
             const foodRef = database.ref('foodVendors').orderByChild('date');
             
             foodRef.on('value', (snapshot) => {
                 logDebug("Food vendors snapshot received", snapshot.val());
-                foodTableBody.innerHTML = '';
-                const vendors = [];
+                foodHistoryContainer.innerHTML = '';
                 
                 snapshot.forEach((childSnapshot) => {
                     const vendor = childSnapshot.val();
                     vendor.id = childSnapshot.key;
-                    vendors.unshift(vendor);
-                });
-                
-                vendors.forEach((vendor) => {
-                    const row = document.createElement('tr');
                     
-                    row.innerHTML = `
-                        <td>${formatDate(vendor.date)}</td>
-                        <td>${vendor.vendorName || 'N/A'}</td>
-                        <td>${formatCurrency(vendor.amount || 0)}</td>
-                        <td>
-                            <button class="btn btn-sm btn-danger delete-food" data-id="${vendor.id}">Delete</button>
-                        </td>
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    historyItem.innerHTML = `
+                        <div>
+                            <div class="history-date">${formatDate(vendor.date)}</div>
+                            <div>${vendor.vendorName || 'N/A'}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="history-amount me-3">${formatCurrency(vendor.amount || 0)}</span>
+                            <span class="history-delete" data-id="${vendor.id}">✕</span>
+                        </div>
                     `;
                     
-                    foodTableBody.appendChild(row);
+                    foodHistoryContainer.prepend(historyItem);
                 });
                 
                 // Add event listeners to delete buttons
-                document.querySelectorAll('.delete-food').forEach(button => {
+                document.querySelectorAll('.history-delete').forEach(button => {
                     button.addEventListener('click', (e) => {
                         const foodId = e.target.getAttribute('data-id');
                         deleteFoodVendor(foodId);
                     });
                 });
                 
-                $('#food-table').DataTable().draw();
             }, (error) => {
                 logDebug("Error loading food vendors:", error);
                 alert("Error loading food vendors. Check console for details.");
@@ -823,7 +808,7 @@
                     vendorName.value = '';
                     foodAmount.value = '';
                     calculateTotals();
-                    loadAddedFees(); // Refresh the added fees tab
+                    loadAllRecords(); // Refresh the all records tab
                     alert('Food vendor due added successfully!');
                 })
                 .catch((error) => {
@@ -840,7 +825,7 @@
                     .then(() => {
                         logDebug("Food vendor deleted successfully");
                         calculateTotals();
-                        loadAddedFees(); // Refresh the added fees tab
+                        loadAllRecords(); // Refresh the all records tab
                     })
                     .catch((error) => {
                         logDebug('Error deleting food vendor:', error);
@@ -849,117 +834,167 @@
             }
         }
 
-        // Load and display withdrawals
+        // Load and display withdrawals history
         function loadWithdrawals() {
             logDebug("Loading withdrawals...");
-            const withdrawalsTableBody = document.querySelector('#withdrawals-table tbody');
-            const withdrawalChat = document.getElementById('withdrawal-chat');
+            const withdrawalsHistoryContainer = document.getElementById('withdrawals-history');
             const withdrawalsRef = database.ref('withdrawals').orderByChild('date');
             
             withdrawalsRef.on('value', (snapshot) => {
                 logDebug("Withdrawals snapshot received", snapshot.val());
-                withdrawalsTableBody.innerHTML = '';
-                withdrawalChat.innerHTML = '';
-                const withdrawals = [];
+                withdrawalsHistoryContainer.innerHTML = '';
                 
                 snapshot.forEach((childSnapshot) => {
                     const withdrawal = childSnapshot.val();
                     withdrawal.id = childSnapshot.key;
-                    withdrawals.unshift(withdrawal);
-                });
-                
-                withdrawals.forEach((withdrawal) => {
-                    // Add to chat
-                    const chatMessage = document.createElement('div');
-                    chatMessage.className = 'chat-message';
                     
-                    chatMessage.innerHTML = `
-                        <div class="chat-date">${formatDate(withdrawal.date)}</div>
-                        <div><strong>${withdrawal.name || 'N/A'}</strong> withdrew <span class="chat-amount">${formatCurrency(withdrawal.amount || 0)}</span></div>
-                        <div>Reason: ${withdrawal.reason || 'N/A'}</div>
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    historyItem.innerHTML = `
+                        <div>
+                            <div class="history-date">${formatDate(withdrawal.date)}</div>
+                            <div><strong>${withdrawal.name || 'N/A'}</strong> - ${withdrawal.reason || 'N/A'}</div>
+                            <div>Previous: ${formatCurrency(withdrawal.previousBalance || 0)}</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="history-amount me-3 text-danger">-${formatCurrency(withdrawal.amount || 0)}</span>
+                            <span class="history-delete" data-id="${withdrawal.id}">✕</span>
+                        </div>
                     `;
                     
-                    withdrawalChat.appendChild(chatMessage);
-                    
-                    // Add to table
-                    const row = document.createElement('tr');
-                    
-                    row.innerHTML = `
-                        <td>${formatDate(withdrawal.date)}</td>
-                        <td>${withdrawal.name || 'N/A'}</td>
-                        <td>${formatCurrency(withdrawal.amount || 0)}</td>
-                        <td>${withdrawal.reason || 'N/A'}</td>
-                        <td>${formatCurrency(withdrawal.previousBalance || 0)}</td>
-                        <td>${formatCurrency(withdrawal.newBalance || 0)}</td>
-                    `;
-                    
-                    withdrawalsTableBody.appendChild(row);
+                    withdrawalsHistoryContainer.prepend(historyItem);
                 });
                 
-                $('#withdrawals-table').DataTable().draw();
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.history-delete').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const withdrawalId = e.target.getAttribute('data-id');
+                        deleteWithdrawal(withdrawalId);
+                    });
+                });
+                
             }, (error) => {
                 logDebug("Error loading withdrawals:", error);
                 alert("Error loading withdrawals. Check console for details.");
             });
         }
 
-        // Load and display all added fees (class fees, offerings, food vendors)
-        function loadAddedFees() {
-            logDebug("Loading all added fees...");
-            const addedFeesTableBody = document.querySelector('#added-fees-table tbody');
-            addedFeesTableBody.innerHTML = '';
+        // Delete withdrawal
+        function deleteWithdrawal(withdrawalId) {
+            if (confirm('Are you sure you want to delete this withdrawal record?')) {
+                logDebug("Deleting withdrawal with ID:", withdrawalId);
+                database.ref('withdrawals/' + withdrawalId).remove()
+                    .then(() => {
+                        logDebug("Withdrawal deleted successfully");
+                        calculateTotals();
+                        loadAllRecords(); // Refresh the all records tab
+                    })
+                    .catch((error) => {
+                        logDebug('Error deleting withdrawal:', error);
+                        alert('Error deleting withdrawal. Please try again.');
+                    });
+            }
+        }
+
+        // Load and display all records
+        function loadAllRecords() {
+            logDebug("Loading all records...");
+            const allRecordsContainer = document.getElementById('all-records-history');
+            allRecordsContainer.innerHTML = '';
             
             // Load class fees
             database.ref('classFees').orderByChild('date').once('value', (classFeesSnapshot) => {
                 classFeesSnapshot.forEach((childSnapshot) => {
                     const fee = childSnapshot.val();
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${formatDate(fee.date)}</td>
-                        <td>Class Fee</td>
-                        <td>${fee.className || 'N/A'}</td>
-                        <td>${formatCurrency(fee.amount || 0)}</td>
+                    fee.id = childSnapshot.key;
+                    
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item';
+                    
+                    historyItem.innerHTML = `
+                        <div>
+                            <div class="history-date">${formatDate(fee.date)}</div>
+                            <div><strong>Class Fee</strong> - ${fee.className || 'N/A'}</div>
+                        </div>
+                        <div class="history-amount text-success">+${formatCurrency(fee.amount || 0)}</div>
                     `;
-                    addedFeesTableBody.appendChild(row);
+                    
+                    allRecordsContainer.prepend(historyItem);
                 });
                 
                 // Load offerings
                 database.ref('offerings').orderByChild('date').once('value', (offeringsSnapshot) => {
                     offeringsSnapshot.forEach((childSnapshot) => {
                         const offering = childSnapshot.val();
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${formatDate(offering.date)}</td>
-                            <td>Church Offering</td>
-                            <td>Weekly Collection</td>
-                            <td>${formatCurrency(offering.amount || 0)}</td>
+                        offering.id = childSnapshot.key;
+                        
+                        const historyItem = document.createElement('div');
+                        historyItem.className = 'history-item';
+                        
+                        historyItem.innerHTML = `
+                            <div>
+                                <div class="history-date">${formatDate(offering.date)}</div>
+                                <div><strong>Church Offering</strong></div>
+                            </div>
+                            <div class="history-amount text-success">+${formatCurrency(offering.amount || 0)}</div>
                         `;
-                        addedFeesTableBody.appendChild(row);
+                        
+                        allRecordsContainer.prepend(historyItem);
                     });
                     
                     // Load food vendors
                     database.ref('foodVendors').orderByChild('date').once('value', (foodVendorsSnapshot) => {
                         foodVendorsSnapshot.forEach((childSnapshot) => {
                             const vendor = childSnapshot.val();
-                            const row = document.createElement('tr');
-                            row.innerHTML = `
-                                <td>${formatDate(vendor.date)}</td>
-                                <td>Food Vendor</td>
-                                <td>${vendor.vendorName || 'N/A'}</td>
-                                <td>${formatCurrency(vendor.amount || 0)}</td>
+                            vendor.id = childSnapshot.key;
+                            
+                            const historyItem = document.createElement('div');
+                            historyItem.className = 'history-item';
+                            
+                            historyItem.innerHTML = `
+                                <div>
+                                    <div class="history-date">${formatDate(vendor.date)}</div>
+                                    <div><strong>Food Vendor</strong> - ${vendor.vendorName || 'N/A'}</div>
+                                </div>
+                                <div class="history-amount text-success">+${formatCurrency(vendor.amount || 0)}</div>
                             `;
-                            addedFeesTableBody.appendChild(row);
+                            
+                            allRecordsContainer.prepend(historyItem);
                         });
                         
-                        $('#added-fees-table').DataTable().draw();
+                        // Load withdrawals
+                        database.ref('withdrawals').orderByChild('date').once('value', (withdrawalsSnapshot) => {
+                            withdrawalsSnapshot.forEach((childSnapshot) => {
+                                const withdrawal = childSnapshot.val();
+                                withdrawal.id = childSnapshot.key;
+                                
+                                const historyItem = document.createElement('div');
+                                historyItem.className = 'history-item';
+                                
+                                historyItem.innerHTML = `
+                                    <div>
+                                        <div class="history-date">${formatDate(withdrawal.date)}</div>
+                                        <div><strong>Withdrawal</strong> - ${withdrawal.name || 'N/A'}</div>
+                                        <div>Reason: ${withdrawal.reason || 'N/A'}</div>
+                                    </div>
+                                    <div class="history-amount text-danger">-${formatCurrency(withdrawal.amount || 0)}</div>
+                                `;
+                                
+                                allRecordsContainer.prepend(historyItem);
+                            });
+                            
+                        }).catch((error) => {
+                            logDebug("Error loading withdrawals for all records:", error);
+                        });
                     }).catch((error) => {
-                        logDebug("Error loading food vendors for added fees:", error);
+                        logDebug("Error loading food vendors for all records:", error);
                     });
                 }).catch((error) => {
-                    logDebug("Error loading offerings for added fees:", error);
+                    logDebug("Error loading offerings for all records:", error);
                 });
             }).catch((error) => {
-                logDebug("Error loading class fees for added fees:", error);
+                logDebug("Error loading class fees for all records:", error);
             });
         }
 
@@ -1025,10 +1060,285 @@
                 });
         });
 
-        // Refresh added fees button
+        // Refresh all records button
         refreshAddedFeesBtn.addEventListener('click', () => {
-            loadAddedFees();
+            loadAllRecords();
         });
+
+        // Function to update the financial chart
+        function updateChart() {
+            logDebug("Updating financial chart...");
+            
+            const timePeriod = parseInt(document.getElementById('time-period').value);
+            const chartType = document.getElementById('chart-type').value;
+            const now = new Date();
+            const cutoffDate = timePeriod === 0 ? 0 : now.getTime() - (timePeriod * 24 * 60 * 60 * 1000);
+            
+            // Fetch all data
+            Promise.all([
+                database.ref('classFees').orderByChild('date').once('value'),
+                database.ref('offerings').orderByChild('date').once('value'),
+                database.ref('foodVendors').orderByChild('date').once('value'),
+                database.ref('withdrawals').orderByChild('date').once('value')
+            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, withdrawalsSnapshot]) => {
+                // Process data
+                const incomeData = [];
+                const expenseData = [];
+                const labels = [];
+                const incomeByType = {
+                    'Class Fees': 0,
+                    'Church Offerings': 0,
+                    'Food Vendors': 0
+                };
+                let totalExpenses = 0;
+                
+                // Process class fees
+                classFeesSnapshot.forEach((childSnapshot) => {
+                    const fee = childSnapshot.val();
+                    if (timePeriod === 0 || fee.date >= cutoffDate) {
+                        const date = new Date(fee.date);
+                        const dateStr = date.toLocaleDateString();
+                        
+                        if (!labels.includes(dateStr)) {
+                            labels.push(dateStr);
+                        }
+                        
+                        incomeData.push({
+                            date: fee.date,
+                            amount: fee.amount,
+                            dateStr: dateStr,
+                            type: 'Class Fees'
+                        });
+                        
+                        incomeByType['Class Fees'] += fee.amount;
+                    }
+                });
+                
+                // Process offerings
+                offeringsSnapshot.forEach((childSnapshot) => {
+                    const offering = childSnapshot.val();
+                    if (timePeriod === 0 || offering.date >= cutoffDate) {
+                        const date = new Date(offering.date);
+                        const dateStr = date.toLocaleDateString();
+                        
+                        if (!labels.includes(dateStr)) {
+                            labels.push(dateStr);
+                        }
+                        
+                        incomeData.push({
+                            date: offering.date,
+                            amount: offering.amount,
+                            dateStr: dateStr,
+                            type: 'Church Offerings'
+                        });
+                        
+                        incomeByType['Church Offerings'] += offering.amount;
+                    }
+                });
+                
+                // Process food vendors
+                foodVendorsSnapshot.forEach((childSnapshot) => {
+                    const vendor = childSnapshot.val();
+                    if (timePeriod === 0 || vendor.date >= cutoffDate) {
+                        const date = new Date(vendor.date);
+                        const dateStr = date.toLocaleDateString();
+                        
+                        if (!labels.includes(dateStr)) {
+                            labels.push(dateStr);
+                        }
+                        
+                        incomeData.push({
+                            date: vendor.date,
+                            amount: vendor.amount,
+                            dateStr: dateStr,
+                            type: 'Food Vendors'
+                        });
+                        
+                        incomeByType['Food Vendors'] += vendor.amount;
+                    }
+                });
+                
+                // Process withdrawals
+                withdrawalsSnapshot.forEach((childSnapshot) => {
+                    const withdrawal = childSnapshot.val();
+                    if (timePeriod === 0 || withdrawal.date >= cutoffDate) {
+                        const date = new Date(withdrawal.date);
+                        const dateStr = date.toLocaleDateString();
+                        
+                        if (!labels.includes(dateStr)) {
+                            labels.push(dateStr);
+                        }
+                        
+                        expenseData.push({
+                            date: withdrawal.date,
+                            amount: withdrawal.amount,
+                            dateStr: dateStr
+                        });
+                        
+                        totalExpenses += withdrawal.amount;
+                    }
+                });
+                
+                // Sort labels chronologically
+                labels.sort((a, b) => {
+                    return new Date(a) - new Date(b);
+                });
+                
+                // Prepare datasets for the chart
+                const uniqueLabels = [...new Set(labels)];
+                
+                // Aggregate income by date
+                const incomeByDate = {};
+                incomeData.forEach(item => {
+                    if (!incomeByDate[item.dateStr]) {
+                        incomeByDate[item.dateStr] = 0;
+                    }
+                    incomeByDate[item.dateStr] += item.amount;
+                });
+                
+                // Aggregate expenses by date
+                const expensesByDate = {};
+                expenseData.forEach(item => {
+                    if (!expensesByDate[item.dateStr]) {
+                        expensesByDate[item.dateStr] = 0;
+                    }
+                    expensesByDate[item.dateStr] += item.amount;
+                });
+                
+                // Prepare chart data
+                const incomeChartData = uniqueLabels.map(label => incomeByDate[label] || 0);
+                const expensesChartData = uniqueLabels.map(label => expensesByDate[label] || 0);
+                
+                // Update the breakdown displays
+                updateBreakdownDisplays(incomeByType, totalExpenses);
+                
+                // Destroy previous chart if it exists
+                if (financialChart) {
+                    financialChart.destroy();
+                }
+                
+                // Create new chart
+                const ctx = document.getElementById('financialChart').getContext('2d');
+                financialChart = new Chart(ctx, {
+                    type: chartType,
+                    data: {
+                        labels: uniqueLabels,
+                        datasets: [
+                            {
+                                label: 'Income',
+                                data: incomeChartData,
+                                backgroundColor: 'rgba(40, 167, 69, 0.5)',
+                                borderColor: 'rgba(40, 167, 69, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'Expenses',
+                                data: expensesChartData,
+                                backgroundColor: 'rgba(220, 53, 69, 0.5)',
+                                borderColor: 'rgba(220, 53, 69, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '₵' + value;
+                                    }
+                                }
+                            }
+                        },
+                        plugins: {
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.dataset.label || '';
+                                        if (label) {
+                                            label += ': ';
+                                        }
+                                        label += '₵' + context.raw;
+                                        return label;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                
+            }).catch(error => {
+                logDebug("Error fetching data for chart:", error);
+                alert("Error loading data for chart. Check console for details.");
+            });
+        }
+        
+        // Function to update the income and expense breakdown displays
+        function updateBreakdownDisplays(incomeByType, totalExpenses) {
+            const incomeBreakdown = document.getElementById('income-breakdown');
+            const expenseBreakdown = document.getElementById('expense-breakdown');
+            
+            // Clear previous content
+            incomeBreakdown.innerHTML = '';
+            expenseBreakdown.innerHTML = '';
+            
+            // Add income breakdown
+            let totalIncome = 0;
+            for (const [type, amount] of Object.entries(incomeByType)) {
+                totalIncome += amount;
+                const item = document.createElement('div');
+                item.className = 'mb-2';
+                item.innerHTML = `
+                    <div class="d-flex justify-content-between">
+                        <span>${type}:</span>
+                        <span class="positive-amount">${formatCurrency(amount)}</span>
+                    </div>
+                `;
+                incomeBreakdown.appendChild(item);
+            }
+            
+            // Add total income
+            const totalIncomeItem = document.createElement('div');
+            totalIncomeItem.className = 'mt-3 pt-2 border-top';
+            totalIncomeItem.innerHTML = `
+                <div class="d-flex justify-content-between fw-bold">
+                    <span>Total Income:</span>
+                    <span class="positive-amount">${formatCurrency(totalIncome)}</span>
+                </div>
+            `;
+            incomeBreakdown.appendChild(totalIncomeItem);
+            
+            // Add expense breakdown (just total for now)
+            const expenseItem = document.createElement('div');
+            expenseItem.className = 'mb-2';
+            expenseItem.innerHTML = `
+                <div class="d-flex justify-content-between">
+                    <span>Total Withdrawals:</span>
+                    <span class="negative-amount">${formatCurrency(totalExpenses)}</span>
+                </div>
+            `;
+            expenseBreakdown.appendChild(expenseItem);
+            
+            // Add net balance
+            const netBalance = totalIncome - totalExpenses;
+            const netBalanceItem = document.createElement('div');
+            netBalanceItem.className = 'mt-3 pt-2 border-top';
+            netBalanceItem.innerHTML = `
+                <div class="d-flex justify-content-between fw-bold">
+                    <span>Net Balance:</span>
+                    <span class="${netBalance >= 0 ? 'positive-amount' : 'negative-amount'}">
+                        ${formatCurrency(netBalance)}
+                    </span>
+                </div>
+            `;
+            expenseBreakdown.appendChild(netBalanceItem);
+        }
+        
+        // Update chart button click handler
+        updateChartBtn.addEventListener('click', updateChart);
 
         // Initialize the application
         function initApp() {
@@ -1037,12 +1347,19 @@
             loadOfferings();
             loadFoodVendors();
             loadWithdrawals();
-            loadAddedFees();
+            loadAllRecords();
             calculateTotals();
             
             // Update current balance in withdrawal modal when it opens
             document.getElementById('withdrawModal').addEventListener('show.bs.modal', function () {
                 document.getElementById('current-balance-display').textContent = formatCurrency(currentBalance);
+            });
+            
+            // Initialize chart when graph tab is shown
+            document.getElementById('graph-tab').addEventListener('shown.bs.tab', function () {
+                if (!financialChart) {
+                    updateChart();
+                }
             });
             
             logDebug("Application initialized successfully");
