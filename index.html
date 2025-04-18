@@ -131,6 +131,15 @@
         .negative-amount {
             color: #dc3545;
         }
+        #admin-controls {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            z-index: 1000;
+        }
+        #restore-data-btn {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -194,15 +203,15 @@
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 <select id="class-select" class="form-select">
-                                    <option value="nursery">Nursery</option>
+                                 <!-- <option value="nursery">Nursery</option>
                                     <option value="kg1">KG 1</option>
-                                    <option value="kg2">KG 2</option>
-                                    <option value="class1">Class 1</option>
-                                    <option value="class2">Class 2</option>
-                                    <option value="class3">Class 3</option>
-                                    <option value="class4">Class 4</option>
+                                    <option value="kg2">KG 2</option>-->
+                                    <option value="Form1">Form 1</option>
+                                    <option value="Form2">Form 2</option>
+                                    <option value="Form3">Form 3</option>
+                                  <!-- <option value="class4">Class 4</option>
                                     <option value="class5">Class 5</option>
-                                    <option value="class6">Class 6</option>
+                                    <option value="class6">Class 6</option>-->
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -343,17 +352,18 @@
                 </div>
                 <div class="modal-body">
                     <form id="withdrawal-form">
+                        <input type="hidden" name="total_balance" id="total-balance-hidden">
                         <div class="mb-3">
                             <label for="withdrawer-name" class="form-label">Your Name</label>
-                            <input type="text" class="form-control" id="withdrawer-name" required>
+                            <input type="text" class="form-control" id="withdrawer-name" name="withdrawer_name" required>
                         </div>
                         <div class="mb-3">
                             <label for="withdraw-amount" class="form-label">Amount</label>
-                            <input type="number" class="form-control" id="withdraw-amount" required>
+                            <input type="number" class="form-control" id="withdraw-amount" name="withdraw_amount" required>
                         </div>
                         <div class="mb-3">
                             <label for="withdraw-reason" class="form-label">Reason</label>
-                            <textarea class="form-control" id="withdraw-reason" rows="3" required></textarea>
+                            <textarea class="form-control" id="withdraw-reason" name="withdraw_reason" rows="3" required></textarea>
                         </div>
                         <div class="mb-3">
                             <p>Current Balance: <span id="current-balance-display">₵0.00</span></p>
@@ -366,6 +376,37 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <!-- Clear Data Modal -->
+    <div class="modal fade" id="clearDataModal" tabindex="-1" aria-labelledby="clearDataModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="clearDataModalLabel">Clear All Data</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="admin-password" class="form-label">Enter Admin Password</label>
+                        <input type="password" class="form-control" id="admin-password" placeholder="Password">
+                    </div>
+                    <div class="alert alert-danger">
+                        <strong>Warning:</strong> This will delete all financial records. This action cannot be undone unless you restore within 74 hours.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirm-clear">Clear All Data</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Controls -->
+    <div id="admin-controls">
+        <button id="clear-data-btn" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#clearDataModal">Clear All Data</button>
+        <button id="restore-data-btn" class="btn btn-success">Restore Data</button>
     </div>
 
     <!-- Connection Status Indicator -->
@@ -438,12 +479,19 @@
         const totalWithdrawalsElement = document.getElementById('total-withdrawals');
         const currentBalanceDisplay = document.getElementById('current-balance-display');
         const updateChartBtn = document.getElementById('update-chart');
+        const totalBalanceHidden = document.getElementById('total-balance-hidden');
+        const clearDataBtn = document.getElementById('clear-data-btn');
+        const restoreDataBtn = document.getElementById('restore-data-btn');
+        const confirmClearBtn = document.getElementById('confirm-clear');
+        const adminPasswordInput = document.getElementById('admin-password');
 
         // Global variables to store totals
         let totalIncome = 0;
         let totalWithdrawals = 0;
         let currentBalance = 0;
         let financialChart = null;
+        let backupData = null;
+        let backupTimestamp = null;
 
         // Function to format date
         function formatDate(timestamp) {
@@ -471,6 +519,7 @@
             totalWithdrawalsElement.textContent = formatCurrency(totalWithdrawals);
             totalBalanceElement.textContent = formatCurrency(currentBalance);
             currentBalanceDisplay.textContent = formatCurrency(currentBalance);
+            totalBalanceHidden.value = formatCurrency(currentBalance);
             logDebug("Totals updated", {
                 income: totalIncome,
                 withdrawals: totalWithdrawals,
@@ -489,12 +538,9 @@
             classFeesRef.once('value', (snapshot) => {
                 logDebug("Class fees data received", snapshot.val());
                 snapshot.forEach((childSnapshot) => {
-                    const fee = childSnapshot.val();
-                    if (!fee.deleted) {
-                        const amount = parseFloat(fee.amount);
-                        if (!isNaN(amount)) {
-                            totalIncome += amount;
-                        }
+                    const amount = parseFloat(childSnapshot.val().amount);
+                    if (!isNaN(amount)) {
+                        totalIncome += amount;
                     }
                 });
                 
@@ -503,12 +549,9 @@
                 offeringsRef.once('value', (snapshot) => {
                     logDebug("Offerings data received", snapshot.val());
                     snapshot.forEach((childSnapshot) => {
-                        const offering = childSnapshot.val();
-                        if (!offering.deleted) {
-                            const amount = parseFloat(offering.amount);
-                            if (!isNaN(amount)) {
-                                totalIncome += amount;
-                            }
+                        const amount = parseFloat(childSnapshot.val().amount);
+                        if (!isNaN(amount)) {
+                            totalIncome += amount;
                         }
                     });
                     
@@ -517,12 +560,9 @@
                     foodRef.once('value', (snapshot) => {
                         logDebug("Food vendors data received", snapshot.val());
                         snapshot.forEach((childSnapshot) => {
-                            const vendor = childSnapshot.val();
-                            if (!vendor.deleted) {
-                                const amount = parseFloat(vendor.amount);
-                                if (!isNaN(amount)) {
-                                    totalIncome += amount;
-                                }
+                            const amount = parseFloat(childSnapshot.val().amount);
+                            if (!isNaN(amount)) {
+                                totalIncome += amount;
                             }
                         });
                         
@@ -531,12 +571,9 @@
                         withdrawalsRef.once('value', (snapshot) => {
                             logDebug("Withdrawals data received", snapshot.val());
                             snapshot.forEach((childSnapshot) => {
-                                const withdrawal = childSnapshot.val();
-                                if (!withdrawal.deleted) {
-                                    const amount = parseFloat(withdrawal.amount);
-                                    if (!isNaN(amount)) {
-                                        totalWithdrawals += amount;
-                                    }
+                                const amount = parseFloat(childSnapshot.val().amount);
+                                if (!isNaN(amount)) {
+                                    totalWithdrawals += amount;
                                 }
                             });
                             
@@ -1189,9 +1226,11 @@
             };
             
             logDebug("Making new withdrawal:", newWithdrawal);
+            
+            // Save to Firebase
             database.ref('withdrawals').push(newWithdrawal)
                 .then(() => {
-                    logDebug("Withdrawal added successfully");
+                    logDebug("Withdrawal added successfully to Firebase");
                     
                     // Reset form
                     withdrawerName.value = '';
@@ -1493,6 +1532,175 @@
         // Update chart button click handler
         updateChartBtn.addEventListener('click', updateChart);
 
+        // Clear all data
+        confirmClearBtn.addEventListener('click', () => {
+            const password = adminPasswordInput.value;
+            if (password !== "Word@Manni") {
+                alert("Incorrect password. Please try again.");
+                return;
+            }
+            
+            if (!confirm("Are you absolutely sure you want to delete ALL financial records? This action cannot be undone unless you restore within 74 hours.")) {
+                return;
+            }
+            
+            // Create a backup of all data
+            Promise.all([
+                database.ref('classFees').once('value'),
+                database.ref('offerings').once('value'),
+                database.ref('foodVendors').once('value'),
+                database.ref('withdrawals').once('value')
+            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, withdrawalsSnapshot]) => {
+                backupData = {
+                    classFees: classFeesSnapshot.val(),
+                    offerings: offeringsSnapshot.val(),
+                    foodVendors: foodVendorsSnapshot.val(),
+                    withdrawals: withdrawalsSnapshot.val(),
+                    timestamp: Date.now()
+                };
+                
+                // Save backup to localStorage
+                localStorage.setItem('financialDataBackup', JSON.stringify(backupData));
+                backupTimestamp = backupData.timestamp;
+                
+                // Now delete all data
+                return Promise.all([
+                    database.ref('classFees').remove(),
+                    database.ref('offerings').remove(),
+                    database.ref('foodVendors').remove(),
+                    database.ref('withdrawals').remove()
+                ]);
+            }).then(() => {
+                logDebug("All data deleted successfully");
+                alert("All data has been deleted. You can restore it within 74 hours.");
+                
+                // Hide clear button and show restore button
+                clearDataBtn.style.display = 'none';
+                restoreDataBtn.style.display = 'block';
+                
+                // Hide the modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('clearDataModal'));
+                modal.hide();
+                
+                // Reset the password field
+                adminPasswordInput.value = '';
+                
+                // Calculate totals to update UI
+                calculateTotals();
+                
+                // Schedule deletion of backup after 74 hours
+                setTimeout(() => {
+                    localStorage.removeItem('financialDataBackup');
+                    backupData = null;
+                    backupTimestamp = null;
+                    
+                    // If restore button is still visible, hide it and show clear button
+                    if (restoreDataBtn.style.display === 'block') {
+                        restoreDataBtn.style.display = 'none';
+                        clearDataBtn.style.display = 'block';
+                    }
+                }, 74 * 60 * 60 * 1000); // 74 hours in milliseconds
+            }).catch(error => {
+                logDebug("Error clearing data:", error);
+                alert("Error clearing data. Please check console for details.");
+            });
+        });
+
+        // Restore data
+        restoreDataBtn.addEventListener('click', () => {
+            if (!backupData) {
+                // Try to load from localStorage
+                const backupStr = localStorage.getItem('financialDataBackup');
+                if (backupStr) {
+                    backupData = JSON.parse(backupStr);
+                    backupTimestamp = backupData.timestamp;
+                } else {
+                    alert("No backup data found to restore.");
+                    return;
+                }
+            }
+            
+            if (!confirm("Are you sure you want to restore all data from backup?")) {
+                return;
+            }
+            
+            // Restore all data
+            const promises = [];
+            
+            if (backupData.classFees) {
+                promises.push(database.ref('classFees').set(backupData.classFees));
+            }
+            
+            if (backupData.offerings) {
+                promises.push(database.ref('offerings').set(backupData.offerings));
+            }
+            
+            if (backupData.foodVendors) {
+                promises.push(database.ref('foodVendors').set(backupData.foodVendors));
+            }
+            
+            if (backupData.withdrawals) {
+                promises.push(database.ref('withdrawals').set(backupData.withdrawals));
+            }
+            
+            Promise.all(promises).then(() => {
+                logDebug("Data restored successfully");
+                alert("Data has been successfully restored from backup.");
+                
+                // Hide restore button and show clear button
+                restoreDataBtn.style.display = 'none';
+                clearDataBtn.style.display = 'block';
+                
+                // Clear the backup
+                localStorage.removeItem('financialDataBackup');
+                backupData = null;
+                backupTimestamp = null;
+                
+                // Calculate totals to update UI
+                calculateTotals();
+            }).catch(error => {
+                logDebug("Error restoring data:", error);
+                alert("Error restoring data. Please check console for details.");
+            });
+        });
+
+        // Check for existing backup on page load
+        function checkForBackup() {
+            const backupStr = localStorage.getItem('financialDataBackup');
+            if (backupStr) {
+                backupData = JSON.parse(backupStr);
+                backupTimestamp = backupData.timestamp;
+                
+                // Check if backup is still within 74 hour window
+                const now = Date.now();
+                const hoursSinceBackup = (now - backupTimestamp) / (1000 * 60 * 60);
+                
+                if (hoursSinceBackup < 74) {
+                    // Show restore button and hide clear button
+                    restoreDataBtn.style.display = 'block';
+                    clearDataBtn.style.display = 'none';
+                    
+                    // Schedule deletion of backup when time expires
+                    const remainingTime = (74 * 60 * 60 * 1000) - (now - backupTimestamp);
+                    setTimeout(() => {
+                        localStorage.removeItem('financialDataBackup');
+                        backupData = null;
+                        backupTimestamp = null;
+                        
+                        if (restoreDataBtn.style.display === 'block') {
+                            restoreDataBtn.style.display = 'none';
+                            clearDataBtn.style.display = 'block';
+                        }
+                    }, remainingTime);
+                } else {
+                    // Backup is expired, remove it
+                    localStorage.removeItem('financialDataBackup');
+                    backupData = null;
+                    backupTimestamp = null;
+                }
+            }
+        }
+
         // Initialize the application
         function initApp() {
             logDebug("Initializing application...");
@@ -1502,10 +1710,12 @@
             loadWithdrawals();
             loadAllRecords();
             calculateTotals();
+            checkForBackup();
             
             // Update current balance in withdrawal modal when it opens
             document.getElementById('withdrawModal').addEventListener('show.bs.modal', function () {
                 document.getElementById('current-balance-display').textContent = formatCurrency(currentBalance);
+                document.getElementById('total-balance-hidden').value = formatCurrency(currentBalance);
             });
             
             // Initialize chart when graph tab is shown
