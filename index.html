@@ -131,20 +131,6 @@
         .negative-amount {
             color: #dc3545;
         }
-        #formspree-status {
-            display: none;
-            margin-top: 10px;
-            padding: 10px;
-            border-radius: 5px;
-        }
-        .status-success {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        .status-error {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
     </style>
 </head>
 <body>
@@ -209,14 +195,14 @@
                             <div class="col-md-4">
                                 <select id="class-select" class="form-select">
                                     <option value="nursery">Nursery</option>
-                                    <option value="kg1">KG 1</option>
+                                   <!-- <option value="kg1">KG 1</option>
                                     <option value="kg2">KG 2</option>
                                     <option value="class1">Class 1</option>
                                     <option value="class2">Class 2</option>
-                                    <option value="class3">Class 3</option>
-                                    <option value="class4">Class 4</option>
-                                    <option value="class5">Class 5</option>
-                                    <option value="class6">Class 6</option>
+                                    <option value="class3">Class 3</option>-->
+                                    <option value="class4">Form 1</option>
+                                    <option value="class5">Form 2</option>
+                                    <option value="class6">Form 3</option>
                                 </select>
                             </div>
                             <div class="col-md-4">
@@ -356,24 +342,22 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="withdrawal-form" action="https://formspree.io/f/YOUR_FORMSPREE_ID" method="POST">
-                        <input type="hidden" name="total_balance" id="total-balance-hidden">
+                    <form id="withdrawal-form">
                         <div class="mb-3">
                             <label for="withdrawer-name" class="form-label">Your Name</label>
-                            <input type="text" class="form-control" id="withdrawer-name" name="withdrawer_name" required>
+                            <input type="text" class="form-control" id="withdrawer-name" required>
                         </div>
                         <div class="mb-3">
                             <label for="withdraw-amount" class="form-label">Amount</label>
-                            <input type="number" class="form-control" id="withdraw-amount" name="withdraw_amount" required>
+                            <input type="number" class="form-control" id="withdraw-amount" required>
                         </div>
                         <div class="mb-3">
                             <label for="withdraw-reason" class="form-label">Reason</label>
-                            <textarea class="form-control" id="withdraw-reason" name="withdraw_reason" rows="3" required></textarea>
+                            <textarea class="form-control" id="withdraw-reason" rows="3" required></textarea>
                         </div>
                         <div class="mb-3">
                             <p>Current Balance: <span id="current-balance-display">₵0.00</span></p>
                         </div>
-                        <div id="formspree-status"></div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -454,9 +438,6 @@
         const totalWithdrawalsElement = document.getElementById('total-withdrawals');
         const currentBalanceDisplay = document.getElementById('current-balance-display');
         const updateChartBtn = document.getElementById('update-chart');
-        const totalBalanceHidden = document.getElementById('total-balance-hidden');
-        const formspreeStatus = document.getElementById('formspree-status');
-        const withdrawalForm = document.getElementById('withdrawal-form');
 
         // Global variables to store totals
         let totalIncome = 0;
@@ -490,7 +471,6 @@
             totalWithdrawalsElement.textContent = formatCurrency(totalWithdrawals);
             totalBalanceElement.textContent = formatCurrency(currentBalance);
             currentBalanceDisplay.textContent = formatCurrency(currentBalance);
-            totalBalanceHidden.value = formatCurrency(currentBalance);
             logDebug("Totals updated", {
                 income: totalIncome,
                 withdrawals: totalWithdrawals,
@@ -509,9 +489,12 @@
             classFeesRef.once('value', (snapshot) => {
                 logDebug("Class fees data received", snapshot.val());
                 snapshot.forEach((childSnapshot) => {
-                    const amount = parseFloat(childSnapshot.val().amount);
-                    if (!isNaN(amount)) {
-                        totalIncome += amount;
+                    const fee = childSnapshot.val();
+                    if (!fee.deleted) {
+                        const amount = parseFloat(fee.amount);
+                        if (!isNaN(amount)) {
+                            totalIncome += amount;
+                        }
                     }
                 });
                 
@@ -520,9 +503,12 @@
                 offeringsRef.once('value', (snapshot) => {
                     logDebug("Offerings data received", snapshot.val());
                     snapshot.forEach((childSnapshot) => {
-                        const amount = parseFloat(childSnapshot.val().amount);
-                        if (!isNaN(amount)) {
-                            totalIncome += amount;
+                        const offering = childSnapshot.val();
+                        if (!offering.deleted) {
+                            const amount = parseFloat(offering.amount);
+                            if (!isNaN(amount)) {
+                                totalIncome += amount;
+                            }
                         }
                     });
                     
@@ -531,9 +517,12 @@
                     foodRef.once('value', (snapshot) => {
                         logDebug("Food vendors data received", snapshot.val());
                         snapshot.forEach((childSnapshot) => {
-                            const amount = parseFloat(childSnapshot.val().amount);
-                            if (!isNaN(amount)) {
-                                totalIncome += amount;
+                            const vendor = childSnapshot.val();
+                            if (!vendor.deleted) {
+                                const amount = parseFloat(vendor.amount);
+                                if (!isNaN(amount)) {
+                                    totalIncome += amount;
+                                }
                             }
                         });
                         
@@ -542,9 +531,12 @@
                         withdrawalsRef.once('value', (snapshot) => {
                             logDebug("Withdrawals data received", snapshot.val());
                             snapshot.forEach((childSnapshot) => {
-                                const amount = parseFloat(childSnapshot.val().amount);
-                                if (!isNaN(amount)) {
-                                    totalWithdrawals += amount;
+                                const withdrawal = childSnapshot.val();
+                                if (!withdrawal.deleted) {
+                                    const amount = parseFloat(withdrawal.amount);
+                                    if (!isNaN(amount)) {
+                                        totalWithdrawals += amount;
+                                    }
                                 }
                             });
                             
@@ -1197,60 +1189,28 @@
             };
             
             logDebug("Making new withdrawal:", newWithdrawal);
-            
-            // First submit to Formspree
-            const formData = new FormData(withdrawalForm);
-            formData.append('new_balance', formatCurrency(currentBalance - amount));
-            
-            formspreeStatus.style.display = 'none';
-            formspreeStatus.textContent = '';
-            formspreeStatus.className = '';
-            
-            fetch(withdrawalForm.action, {
-                method: 'POST',
-                body: formData,
-                headers: {
-                    'Accept': 'application/json'
-                }
-            })
-            .then(response => {
-                if (response.ok) {
-                    formspreeStatus.textContent = 'Withdrawal details submitted successfully!';
-                    formspreeStatus.className = 'status-success';
-                    formspreeStatus.style.display = 'block';
+            database.ref('withdrawals').push(newWithdrawal)
+                .then(() => {
+                    logDebug("Withdrawal added successfully");
                     
-                    // Now save to Firebase
-                    return database.ref('withdrawals').push(newWithdrawal);
-                } else {
-                    throw new Error('Formspree submission failed');
-                }
-            })
-            .then(() => {
-                logDebug("Withdrawal added successfully to Firebase");
-                
-                // Reset form
-                withdrawerName.value = '';
-                withdrawAmount.value = '';
-                withdrawReason.value = '';
-                
-                // Close modal after a short delay to show success message
-                setTimeout(() => {
+                    // Reset form
+                    withdrawerName.value = '';
+                    withdrawAmount.value = '';
+                    withdrawReason.value = '';
+                    
+                    // Close modal
                     const modal = bootstrap.Modal.getInstance(document.getElementById('withdrawModal'));
                     modal.hide();
                     
                     // Update totals
                     calculateTotals();
                     
-                    alert('Withdrawal successful and details submitted!');
-                }, 1500);
-            })
-            .catch((error) => {
-                logDebug('Error making withdrawal:', error);
-                formspreeStatus.textContent = 'Error submitting withdrawal details. Please try again.';
-                formspreeStatus.className = 'status-error';
-                formspreeStatus.style.display = 'block';
-                alert('Error making withdrawal. Please check console for details.');
-            });
+                    alert('Withdrawal successful!');
+                })
+                .catch((error) => {
+                    logDebug('Error making withdrawal:', error);
+                    alert('Error making withdrawal. Please check console for details.');
+                });
         });
 
         // Refresh all records button
@@ -1546,7 +1506,6 @@
             // Update current balance in withdrawal modal when it opens
             document.getElementById('withdrawModal').addEventListener('show.bs.modal', function () {
                 document.getElementById('current-balance-display').textContent = formatCurrency(currentBalance);
-                document.getElementById('total-balance-hidden').value = formatCurrency(currentBalance);
             });
             
             // Initialize chart when graph tab is shown
