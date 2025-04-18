@@ -94,6 +94,11 @@
             border-bottom: 1px solid #eee;
             display: flex;
             justify-content: space-between;
+            transition: opacity 0.5s ease;
+        }
+        .history-item.deleted {
+            opacity: 0.5;
+            background-color: #f8f9fa;
         }
         .history-item:last-child {
             border-bottom: none;
@@ -125,6 +130,20 @@
         }
         .negative-amount {
             color: #dc3545;
+        }
+        #formspree-status {
+            display: none;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
         }
     </style>
 </head>
@@ -337,22 +356,24 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="withdrawal-form">
+                    <form id="withdrawal-form" action="https://formspree.io/f/YOUR_FORMSPREE_ID" method="POST">
+                        <input type="hidden" name="total_balance" id="total-balance-hidden">
                         <div class="mb-3">
                             <label for="withdrawer-name" class="form-label">Your Name</label>
-                            <input type="text" class="form-control" id="withdrawer-name" required>
+                            <input type="text" class="form-control" id="withdrawer-name" name="withdrawer_name" required>
                         </div>
                         <div class="mb-3">
                             <label for="withdraw-amount" class="form-label">Amount</label>
-                            <input type="number" class="form-control" id="withdraw-amount" required>
+                            <input type="number" class="form-control" id="withdraw-amount" name="withdraw_amount" required>
                         </div>
                         <div class="mb-3">
                             <label for="withdraw-reason" class="form-label">Reason</label>
-                            <textarea class="form-control" id="withdraw-reason" rows="3" required></textarea>
+                            <textarea class="form-control" id="withdraw-reason" name="withdraw_reason" rows="3" required></textarea>
                         </div>
                         <div class="mb-3">
                             <p>Current Balance: <span id="current-balance-display">₵0.00</span></p>
                         </div>
+                        <div id="formspree-status"></div>
                     </form>
                 </div>
                 <div class="modal-footer">
@@ -433,6 +454,9 @@
         const totalWithdrawalsElement = document.getElementById('total-withdrawals');
         const currentBalanceDisplay = document.getElementById('current-balance-display');
         const updateChartBtn = document.getElementById('update-chart');
+        const totalBalanceHidden = document.getElementById('total-balance-hidden');
+        const formspreeStatus = document.getElementById('formspree-status');
+        const withdrawalForm = document.getElementById('withdrawal-form');
 
         // Global variables to store totals
         let totalIncome = 0;
@@ -466,6 +490,7 @@
             totalWithdrawalsElement.textContent = formatCurrency(totalWithdrawals);
             totalBalanceElement.textContent = formatCurrency(currentBalance);
             currentBalanceDisplay.textContent = formatCurrency(currentBalance);
+            totalBalanceHidden.value = formatCurrency(currentBalance);
             logDebug("Totals updated", {
                 income: totalIncome,
                 withdrawals: totalWithdrawals,
@@ -567,6 +592,9 @@
                     
                     const historyItem = document.createElement('div');
                     historyItem.className = 'history-item';
+                    if (fee.deleted) {
+                        historyItem.classList.add('deleted');
+                    }
                     
                     historyItem.innerHTML = `
                         <div>
@@ -609,7 +637,8 @@
             const newFee = {
                 className: classSelect.value,
                 amount: parseFloat(feeAmount.value),
-                date: Date.now()
+                date: Date.now(),
+                deleted: false
             };
             
             logDebug("Adding new class fee:", newFee);
@@ -630,17 +659,44 @@
         // Delete class fee
         function deleteClassFee(feeId) {
             if (confirm('Are you sure you want to delete this fee record?')) {
-                logDebug("Deleting class fee with ID:", feeId);
-                database.ref('classFees/' + feeId).remove()
-                    .then(() => {
-                        logDebug("Class fee deleted successfully");
-                        calculateTotals();
-                        loadAllRecords(); // Refresh the all records tab
-                    })
-                    .catch((error) => {
-                        logDebug('Error deleting fee:', error);
-                        alert('Error deleting fee. Please try again.');
+                logDebug("Marking class fee as deleted with ID:", feeId);
+                
+                // Mark as deleted instead of removing
+                database.ref('classFees/' + feeId).update({
+                    deleted: true,
+                    deletedAt: Date.now()
+                })
+                .then(() => {
+                    logDebug("Class fee marked as deleted");
+                    
+                    // Fade out the deleted item
+                    const historyItems = document.querySelectorAll('.history-item');
+                    historyItems.forEach(item => {
+                        if (item.querySelector('.history-delete').getAttribute('data-id') === feeId) {
+                            item.classList.add('deleted');
+                        }
                     });
+                    
+                    // Schedule permanent deletion after 72 hours
+                    setTimeout(() => {
+                        database.ref('classFees/' + feeId).remove()
+                            .then(() => {
+                                logDebug("Class fee permanently deleted after 72 hours");
+                                calculateTotals();
+                                loadAllRecords();
+                            })
+                            .catch(error => {
+                                logDebug("Error permanently deleting class fee:", error);
+                            });
+                    }, 72 * 60 * 60 * 1000); // 72 hours in milliseconds
+                    
+                    calculateTotals();
+                    loadAllRecords(); // Refresh the all records tab
+                })
+                .catch((error) => {
+                    logDebug('Error deleting fee:', error);
+                    alert('Error deleting fee. Please try again.');
+                });
             }
         }
 
@@ -660,6 +716,9 @@
                     
                     const historyItem = document.createElement('div');
                     historyItem.className = 'history-item';
+                    if (offering.deleted) {
+                        historyItem.classList.add('deleted');
+                    }
                     
                     historyItem.innerHTML = `
                         <div>
@@ -700,7 +759,8 @@
             
             const newOffering = {
                 amount: parseFloat(offeringAmount.value),
-                date: Date.now()
+                date: Date.now(),
+                deleted: false
             };
             
             logDebug("Adding new offering:", newOffering);
@@ -721,17 +781,44 @@
         // Delete offering
         function deleteOffering(offeringId) {
             if (confirm('Are you sure you want to delete this offering record?')) {
-                logDebug("Deleting offering with ID:", offeringId);
-                database.ref('offerings/' + offeringId).remove()
-                    .then(() => {
-                        logDebug("Offering deleted successfully");
-                        calculateTotals();
-                        loadAllRecords(); // Refresh the all records tab
-                    })
-                    .catch((error) => {
-                        logDebug('Error deleting offering:', error);
-                        alert('Error deleting offering. Please try again.');
+                logDebug("Marking offering as deleted with ID:", offeringId);
+                
+                // Mark as deleted instead of removing
+                database.ref('offerings/' + offeringId).update({
+                    deleted: true,
+                    deletedAt: Date.now()
+                })
+                .then(() => {
+                    logDebug("Offering marked as deleted");
+                    
+                    // Fade out the deleted item
+                    const historyItems = document.querySelectorAll('.history-item');
+                    historyItems.forEach(item => {
+                        if (item.querySelector('.history-delete').getAttribute('data-id') === offeringId) {
+                            item.classList.add('deleted');
+                        }
                     });
+                    
+                    // Schedule permanent deletion after 72 hours
+                    setTimeout(() => {
+                        database.ref('offerings/' + offeringId).remove()
+                            .then(() => {
+                                logDebug("Offering permanently deleted after 72 hours");
+                                calculateTotals();
+                                loadAllRecords();
+                            })
+                            .catch(error => {
+                                logDebug("Error permanently deleting offering:", error);
+                            });
+                    }, 72 * 60 * 60 * 1000); // 72 hours in milliseconds
+                    
+                    calculateTotals();
+                    loadAllRecords(); // Refresh the all records tab
+                })
+                .catch((error) => {
+                    logDebug('Error deleting offering:', error);
+                    alert('Error deleting offering. Please try again.');
+                });
             }
         }
 
@@ -751,6 +838,9 @@
                     
                     const historyItem = document.createElement('div');
                     historyItem.className = 'history-item';
+                    if (vendor.deleted) {
+                        historyItem.classList.add('deleted');
+                    }
                     
                     historyItem.innerHTML = `
                         <div>
@@ -798,7 +888,8 @@
             const newFood = {
                 vendorName: vendorName.value.trim(),
                 amount: parseFloat(foodAmount.value),
-                date: Date.now()
+                date: Date.now(),
+                deleted: false
             };
             
             logDebug("Adding new food vendor due:", newFood);
@@ -820,17 +911,44 @@
         // Delete food vendor due
         function deleteFoodVendor(foodId) {
             if (confirm('Are you sure you want to delete this food vendor record?')) {
-                logDebug("Deleting food vendor with ID:", foodId);
-                database.ref('foodVendors/' + foodId).remove()
-                    .then(() => {
-                        logDebug("Food vendor deleted successfully");
-                        calculateTotals();
-                        loadAllRecords(); // Refresh the all records tab
-                    })
-                    .catch((error) => {
-                        logDebug('Error deleting food vendor:', error);
-                        alert('Error deleting food vendor. Please try again.');
+                logDebug("Marking food vendor as deleted with ID:", foodId);
+                
+                // Mark as deleted instead of removing
+                database.ref('foodVendors/' + foodId).update({
+                    deleted: true,
+                    deletedAt: Date.now()
+                })
+                .then(() => {
+                    logDebug("Food vendor marked as deleted");
+                    
+                    // Fade out the deleted item
+                    const historyItems = document.querySelectorAll('.history-item');
+                    historyItems.forEach(item => {
+                        if (item.querySelector('.history-delete').getAttribute('data-id') === foodId) {
+                            item.classList.add('deleted');
+                        }
                     });
+                    
+                    // Schedule permanent deletion after 72 hours
+                    setTimeout(() => {
+                        database.ref('foodVendors/' + foodId).remove()
+                            .then(() => {
+                                logDebug("Food vendor permanently deleted after 72 hours");
+                                calculateTotals();
+                                loadAllRecords();
+                            })
+                            .catch(error => {
+                                logDebug("Error permanently deleting food vendor:", error);
+                            });
+                    }, 72 * 60 * 60 * 1000); // 72 hours in milliseconds
+                    
+                    calculateTotals();
+                    loadAllRecords(); // Refresh the all records tab
+                })
+                .catch((error) => {
+                    logDebug('Error deleting food vendor:', error);
+                    alert('Error deleting food vendor. Please try again.');
+                });
             }
         }
 
@@ -850,6 +968,9 @@
                     
                     const historyItem = document.createElement('div');
                     historyItem.className = 'history-item';
+                    if (withdrawal.deleted) {
+                        historyItem.classList.add('deleted');
+                    }
                     
                     historyItem.innerHTML = `
                         <div>
@@ -883,17 +1004,44 @@
         // Delete withdrawal
         function deleteWithdrawal(withdrawalId) {
             if (confirm('Are you sure you want to delete this withdrawal record?')) {
-                logDebug("Deleting withdrawal with ID:", withdrawalId);
-                database.ref('withdrawals/' + withdrawalId).remove()
-                    .then(() => {
-                        logDebug("Withdrawal deleted successfully");
-                        calculateTotals();
-                        loadAllRecords(); // Refresh the all records tab
-                    })
-                    .catch((error) => {
-                        logDebug('Error deleting withdrawal:', error);
-                        alert('Error deleting withdrawal. Please try again.');
+                logDebug("Marking withdrawal as deleted with ID:", withdrawalId);
+                
+                // Mark as deleted instead of removing
+                database.ref('withdrawals/' + withdrawalId).update({
+                    deleted: true,
+                    deletedAt: Date.now()
+                })
+                .then(() => {
+                    logDebug("Withdrawal marked as deleted");
+                    
+                    // Fade out the deleted item
+                    const historyItems = document.querySelectorAll('.history-item');
+                    historyItems.forEach(item => {
+                        if (item.querySelector('.history-delete').getAttribute('data-id') === withdrawalId) {
+                            item.classList.add('deleted');
+                        }
                     });
+                    
+                    // Schedule permanent deletion after 72 hours
+                    setTimeout(() => {
+                        database.ref('withdrawals/' + withdrawalId).remove()
+                            .then(() => {
+                                logDebug("Withdrawal permanently deleted after 72 hours");
+                                calculateTotals();
+                                loadAllRecords();
+                            })
+                            .catch(error => {
+                                logDebug("Error permanently deleting withdrawal:", error);
+                            });
+                    }, 72 * 60 * 60 * 1000); // 72 hours in milliseconds
+                    
+                    calculateTotals();
+                    loadAllRecords(); // Refresh the all records tab
+                })
+                .catch((error) => {
+                    logDebug('Error deleting withdrawal:', error);
+                    alert('Error deleting withdrawal. Please try again.');
+                });
             }
         }
 
@@ -911,6 +1059,9 @@
                     
                     const historyItem = document.createElement('div');
                     historyItem.className = 'history-item';
+                    if (fee.deleted) {
+                        historyItem.classList.add('deleted');
+                    }
                     
                     historyItem.innerHTML = `
                         <div>
@@ -931,6 +1082,9 @@
                         
                         const historyItem = document.createElement('div');
                         historyItem.className = 'history-item';
+                        if (offering.deleted) {
+                            historyItem.classList.add('deleted');
+                        }
                         
                         historyItem.innerHTML = `
                             <div>
@@ -951,6 +1105,9 @@
                             
                             const historyItem = document.createElement('div');
                             historyItem.className = 'history-item';
+                            if (vendor.deleted) {
+                                historyItem.classList.add('deleted');
+                            }
                             
                             historyItem.innerHTML = `
                                 <div>
@@ -971,6 +1128,9 @@
                                 
                                 const historyItem = document.createElement('div');
                                 historyItem.className = 'history-item';
+                                if (withdrawal.deleted) {
+                                    historyItem.classList.add('deleted');
+                                }
                                 
                                 historyItem.innerHTML = `
                                     <div>
@@ -1032,32 +1192,65 @@
                 reason: withdrawReason.value.trim(),
                 previousBalance: currentBalance,
                 newBalance: currentBalance - amount,
-                date: Date.now()
+                date: Date.now(),
+                deleted: false
             };
             
             logDebug("Making new withdrawal:", newWithdrawal);
-            database.ref('withdrawals').push(newWithdrawal)
-                .then(() => {
-                    logDebug("Withdrawal added successfully");
+            
+            // First submit to Formspree
+            const formData = new FormData(withdrawalForm);
+            formData.append('new_balance', formatCurrency(currentBalance - amount));
+            
+            formspreeStatus.style.display = 'none';
+            formspreeStatus.textContent = '';
+            formspreeStatus.className = '';
+            
+            fetch(withdrawalForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    formspreeStatus.textContent = 'Withdrawal details submitted successfully!';
+                    formspreeStatus.className = 'status-success';
+                    formspreeStatus.style.display = 'block';
                     
-                    // Reset form
-                    withdrawerName.value = '';
-                    withdrawAmount.value = '';
-                    withdrawReason.value = '';
-                    
-                    // Close modal
+                    // Now save to Firebase
+                    return database.ref('withdrawals').push(newWithdrawal);
+                } else {
+                    throw new Error('Formspree submission failed');
+                }
+            })
+            .then(() => {
+                logDebug("Withdrawal added successfully to Firebase");
+                
+                // Reset form
+                withdrawerName.value = '';
+                withdrawAmount.value = '';
+                withdrawReason.value = '';
+                
+                // Close modal after a short delay to show success message
+                setTimeout(() => {
                     const modal = bootstrap.Modal.getInstance(document.getElementById('withdrawModal'));
                     modal.hide();
                     
                     // Update totals
                     calculateTotals();
                     
-                    alert('Withdrawal successful!');
-                })
-                .catch((error) => {
-                    logDebug('Error making withdrawal:', error);
-                    alert('Error making withdrawal. Please check console for details.');
-                });
+                    alert('Withdrawal successful and details submitted!');
+                }, 1500);
+            })
+            .catch((error) => {
+                logDebug('Error making withdrawal:', error);
+                formspreeStatus.textContent = 'Error submitting withdrawal details. Please try again.';
+                formspreeStatus.className = 'status-error';
+                formspreeStatus.style.display = 'block';
+                alert('Error making withdrawal. Please check console for details.');
+            });
         });
 
         // Refresh all records button
@@ -1095,7 +1288,7 @@
                 // Process class fees
                 classFeesSnapshot.forEach((childSnapshot) => {
                     const fee = childSnapshot.val();
-                    if (timePeriod === 0 || fee.date >= cutoffDate) {
+                    if ((timePeriod === 0 || fee.date >= cutoffDate) && !fee.deleted) {
                         const date = new Date(fee.date);
                         const dateStr = date.toLocaleDateString();
                         
@@ -1117,7 +1310,7 @@
                 // Process offerings
                 offeringsSnapshot.forEach((childSnapshot) => {
                     const offering = childSnapshot.val();
-                    if (timePeriod === 0 || offering.date >= cutoffDate) {
+                    if ((timePeriod === 0 || offering.date >= cutoffDate) && !offering.deleted) {
                         const date = new Date(offering.date);
                         const dateStr = date.toLocaleDateString();
                         
@@ -1139,7 +1332,7 @@
                 // Process food vendors
                 foodVendorsSnapshot.forEach((childSnapshot) => {
                     const vendor = childSnapshot.val();
-                    if (timePeriod === 0 || vendor.date >= cutoffDate) {
+                    if ((timePeriod === 0 || vendor.date >= cutoffDate) && !vendor.deleted) {
                         const date = new Date(vendor.date);
                         const dateStr = date.toLocaleDateString();
                         
@@ -1161,7 +1354,7 @@
                 // Process withdrawals
                 withdrawalsSnapshot.forEach((childSnapshot) => {
                     const withdrawal = childSnapshot.val();
-                    if (timePeriod === 0 || withdrawal.date >= cutoffDate) {
+                    if ((timePeriod === 0 || withdrawal.date >= cutoffDate) && !withdrawal.deleted) {
                         const date = new Date(withdrawal.date);
                         const dateStr = date.toLocaleDateString();
                         
@@ -1353,6 +1546,7 @@
             // Update current balance in withdrawal modal when it opens
             document.getElementById('withdrawModal').addEventListener('show.bs.modal', function () {
                 document.getElementById('current-balance-display').textContent = formatCurrency(currentBalance);
+                document.getElementById('total-balance-hidden').value = formatCurrency(currentBalance);
             });
             
             // Initialize chart when graph tab is shown
