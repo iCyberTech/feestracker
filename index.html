@@ -208,6 +208,10 @@
             font-weight: bold;
             margin-left: 5px;
         }
+        .printing-fee-item {
+            background-color: #e6f7ff;
+            border-left: 4px solid #1890ff;
+        }
     </style>
 </head>
 <body>
@@ -247,6 +251,9 @@
                 <ul class="nav nav-tabs" id="myTab" role="tablist">
                     <li class="nav-item" role="presentation">
                         <button class="nav-link active" id="fees-tab" data-bs-toggle="tab" data-bs-target="#fees" type="button" role="tab">Class Fees</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="printing-tab" data-bs-toggle="tab" data-bs-target="#printing" type="button" role="tab">Printing Fees</button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="offerings-tab" data-bs-toggle="tab" data-bs-target="#offerings" type="button" role="tab">Church Offerings</button>
@@ -291,6 +298,29 @@
                         </div>
                         <div class="history-container" id="fees-history">
                             <!-- Class fees history will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Printing Fees Tab -->
+                    <div class="tab-pane fade" id="printing" role="tabpanel">
+                        <h3>Printing Fees</h3>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <select id="printing-class-select" class="form-select">
+                                    <option value="Form1">Form 1</option>
+                                    <option value="Form2">Form 2</option>
+                                    <option value="Form3">Form 3</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="number" id="printing-amount" class="form-control" placeholder="Amount">
+                            </div>
+                            <div class="col-md-4">
+                                <button id="add-printing" class="btn btn-primary">Add Printing Fee</button>
+                            </div>
+                        </div>
+                        <div class="history-container" id="printing-history">
+                            <!-- Printing fees history will be loaded here -->
                         </div>
                     </div>
                     
@@ -486,6 +516,7 @@
                                 <option value="">Select Source</option>
                                 <option value="total_balance">Total Balance</option>
                                 <option value="class_fees">Class Fees</option>
+                                <option value="printing_fees">Printing Fees</option>
                                 <option value="church_offerings">Church Offerings</option>
                                 <option value="food_vendors">Food Vendors</option>
                                 <option value="other_fees">Other Fees</option>
@@ -601,6 +632,7 @@
 
         // DOM Elements
         const addFeeBtn = document.getElementById('add-fee');
+        const addPrintingBtn = document.getElementById('add-printing');
         const addOfferingBtn = document.getElementById('add-offering');
         const addFoodBtn = document.getElementById('add-food');
         const addOtherBtn = document.getElementById('add-other');
@@ -634,6 +666,7 @@
         let recentTitles = JSON.parse(localStorage.getItem('recentTitles')) || [];
         let categoryTotals = {
             classFees: 0,
+            printingFees: 0,
             offerings: 0,
             foodVendors: 0,
             otherFees: 0
@@ -747,6 +780,7 @@
             // Reset category totals
             categoryTotals = {
                 classFees: 0,
+                printingFees: 0,
                 offerings: 0,
                 foodVendors: 0,
                 otherFees: 0
@@ -765,84 +799,101 @@
                     }
                 });
                 
-                // Calculate income from offerings
-                const offeringsRef = database.ref('offerings');
-                offeringsRef.once('value', (snapshot) => {
-                    logDebug("Offerings data received", snapshot.val());
+                // Calculate income from printing fees
+                const printingFeesRef = database.ref('printingFees');
+                printingFeesRef.once('value', (snapshot) => {
+                    logDebug("Printing fees data received", snapshot.val());
                     snapshot.forEach((childSnapshot) => {
-                        const offering = childSnapshot.val();
-                        if (!offering.deleted) {
-                            const amount = parseFloat(offering.amount) || 0;
+                        const fee = childSnapshot.val();
+                        if (!fee.deleted) {
+                            const amount = parseFloat(fee.amount) || 0;
                             totalIncome += amount;
-                            categoryTotals.offerings += amount;
+                            categoryTotals.printingFees += amount;
                         }
                     });
-                    
-                    // Calculate income from food vendors
-                    const foodRef = database.ref('foodVendors');
-                    foodRef.once('value', (snapshot) => {
-                        logDebug("Food vendors data received", snapshot.val());
+                
+                    // Calculate income from offerings
+                    const offeringsRef = database.ref('offerings');
+                    offeringsRef.once('value', (snapshot) => {
+                        logDebug("Offerings data received", snapshot.val());
                         snapshot.forEach((childSnapshot) => {
-                            const vendor = childSnapshot.val();
-                            if (!vendor.deleted) {
-                                const amount = parseFloat(vendor.amount) || 0;
+                            const offering = childSnapshot.val();
+                            if (!offering.deleted) {
+                                const amount = parseFloat(offering.amount) || 0;
                                 totalIncome += amount;
-                                categoryTotals.foodVendors += amount;
+                                categoryTotals.offerings += amount;
                             }
                         });
                         
-                        // Calculate income from other fees
-                        const othersRef = database.ref('otherFees');
-                        othersRef.once('value', (snapshot) => {
-                            logDebug("Other fees data received", snapshot.val());
+                        // Calculate income from food vendors
+                        const foodRef = database.ref('foodVendors');
+                        foodRef.once('value', (snapshot) => {
+                            logDebug("Food vendors data received", snapshot.val());
                             snapshot.forEach((childSnapshot) => {
-                                const other = childSnapshot.val();
-                                if (!other.deleted) {
-                                    const amount = parseFloat(other.amount) || 0;
+                                const vendor = childSnapshot.val();
+                                if (!vendor.deleted) {
+                                    const amount = parseFloat(vendor.amount) || 0;
                                     totalIncome += amount;
-                                    categoryTotals.otherFees += amount;
+                                    categoryTotals.foodVendors += amount;
                                 }
                             });
                             
-                            // Calculate total Expenses
-                            const ExpensesRef = database.ref('Expenses');
-                            ExpensesRef.once('value', (snapshot) => {
-                                logDebug("Expenses data received", snapshot.val());
+                            // Calculate income from other fees
+                            const othersRef = database.ref('otherFees');
+                            othersRef.once('value', (snapshot) => {
+                                logDebug("Other fees data received", snapshot.val());
                                 snapshot.forEach((childSnapshot) => {
-                                    const withdrawal = childSnapshot.val();
-                                    if (!withdrawal.deleted) {
-                                        const amount = parseFloat(withdrawal.amount) || 0;
-                                        totalExpenses += amount;
+                                    const other = childSnapshot.val();
+                                    if (!other.deleted) {
+                                        const amount = parseFloat(other.amount) || 0;
+                                        totalIncome += amount;
+                                        categoryTotals.otherFees += amount;
                                     }
                                 });
                                 
-                                // Calculate current balance
-                                currentBalance = totalIncome - totalExpenses;
-                                
-                                // Update display
-                                updateTotalsDisplay();
-                                
-                                // Update the chart if it exists
-                                if (financialChart) {
-                                    updateChart();
-                                }
-                                
-                                // Update the breakdown
-                                updateBreakdown();
+                                // Calculate total Expenses
+                                const ExpensesRef = database.ref('Expenses');
+                                ExpensesRef.once('value', (snapshot) => {
+                                    logDebug("Expenses data received", snapshot.val());
+                                    snapshot.forEach((childSnapshot) => {
+                                        const withdrawal = childSnapshot.val();
+                                        if (!withdrawal.deleted) {
+                                            const amount = parseFloat(withdrawal.amount) || 0;
+                                            totalExpenses += amount;
+                                        }
+                                    });
+                                    
+                                    // Calculate current balance
+                                    currentBalance = totalIncome - totalExpenses;
+                                    
+                                    // Update display
+                                    updateTotalsDisplay();
+                                    
+                                    // Update the chart if it exists
+                                    if (financialChart) {
+                                        updateChart();
+                                    }
+                                    
+                                    // Update the breakdown
+                                    updateBreakdown();
+                                }).catch((error) => {
+                                    logDebug("Error getting Expenses:", error);
+                                    alert("Error calculating totals. Check console for details.");
+                                });
                             }).catch((error) => {
-                                logDebug("Error getting Expenses:", error);
+                                logDebug("Error getting other fees:", error);
                                 alert("Error calculating totals. Check console for details.");
                             });
                         }).catch((error) => {
-                            logDebug("Error getting other fees:", error);
+                            logDebug("Error getting food vendors:", error);
                             alert("Error calculating totals. Check console for details.");
                         });
                     }).catch((error) => {
-                        logDebug("Error getting food vendors:", error);
+                        logDebug("Error getting offerings:", error);
                         alert("Error calculating totals. Check console for details.");
                     });
                 }).catch((error) => {
-                    logDebug("Error getting offerings:", error);
+                    logDebug("Error getting printing fees:", error);
                     alert("Error calculating totals. Check console for details.");
                 });
             }).catch((error) => {
@@ -899,6 +950,54 @@
             });
         }
 
+        // Load and display printing fees history
+        function loadPrintingFees() {
+            logDebug("Loading printing fees...");
+            const printingHistoryContainer = document.getElementById('printing-history');
+            const printingFeesRef = database.ref('printingFees').orderByChild('date');
+            
+            printingFeesRef.on('value', (snapshot) => {
+                logDebug("Printing fees snapshot received", snapshot.val());
+                printingHistoryContainer.innerHTML = '';
+                
+                snapshot.forEach((childSnapshot) => {
+                    const fee = childSnapshot.val();
+                    fee.id = childSnapshot.key;
+                    
+                    const historyItem = document.createElement('div');
+                    historyItem.className = 'history-item printing-fee-item';
+                    if (fee.deleted) {
+                        historyItem.classList.add('deleted');
+                    }
+                    
+                    historyItem.innerHTML = `
+                        <div>
+                            <div class="history-date">${formatDate(fee.date)}</div>
+                            <div>${fee.className || 'N/A'} - Printing Fee</div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <span class="history-amount me-3">${formatCurrency(fee.amount || 0)}</span>
+                            <span class="history-delete" data-id="${fee.id}" data-type="printingFees">✕</span>
+                        </div>
+                    `;
+                    
+                    printingHistoryContainer.prepend(historyItem);
+                });
+                
+                // Add event listeners to delete buttons
+                document.querySelectorAll('.history-delete[data-type="printingFees"]').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const feeId = e.target.getAttribute('data-id');
+                        deleteRecord(feeId, 'printingFees');
+                    });
+                });
+                
+            }, (error) => {
+                logDebug("Error loading printing fees:", error);
+                alert("Error loading printing fees. Check console for details.");
+            });
+        }
+
         // Add new class fee
         addFeeBtn.addEventListener('click', () => {
             const classSelect = document.getElementById('class-select');
@@ -928,6 +1027,38 @@
                 .catch((error) => {
                     logDebug('Error adding fee:', error);
                     alert('Error adding fee. Please check console for details.');
+                });
+        });
+
+        // Add new printing fee
+        addPrintingBtn.addEventListener('click', () => {
+            const classSelect = document.getElementById('printing-class-select');
+            const printingAmount = document.getElementById('printing-amount');
+            
+            if (!printingAmount.value || isNaN(printingAmount.value) || parseFloat(printingAmount.value) <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            const newFee = {
+                className: classSelect.value,
+                amount: parseFloat(printingAmount.value),
+                date: Date.now(),
+                deleted: false
+            };
+            
+            logDebug("Adding new printing fee:", newFee);
+            database.ref('printingFees').push(newFee)
+                .then(() => {
+                    logDebug("Printing fee added successfully");
+                    printingAmount.value = '';
+                    calculateTotals();
+                    loadAllRecords(); // Refresh the all records tab
+                    alert('Printing fee added successfully!');
+                })
+                .catch((error) => {
+                    logDebug('Error adding printing fee:', error);
+                    alert('Error adding printing fee. Please check console for details.');
                 });
         });
 
@@ -1317,110 +1448,136 @@
                     allRecordsContainer.prepend(historyItem);
                 });
                 
-                // Load offerings
-                database.ref('offerings').orderByChild('date').once('value', (offeringsSnapshot) => {
-                    offeringsSnapshot.forEach((childSnapshot) => {
-                        const offering = childSnapshot.val();
-                        offering.id = childSnapshot.key;
+                // Load printing fees
+                database.ref('printingFees').orderByChild('date').once('value', (printingFeesSnapshot) => {
+                    printingFeesSnapshot.forEach((childSnapshot) => {
+                        const fee = childSnapshot.val();
+                        fee.id = childSnapshot.key;
                         
                         const historyItem = document.createElement('div');
-                        historyItem.className = 'history-item';
-                        if (offering.deleted) {
+                        historyItem.className = 'history-item printing-fee-item';
+                        if (fee.deleted) {
                             historyItem.classList.add('deleted');
                         }
                         
                         historyItem.innerHTML = `
                             <div>
-                                <div class="history-date">${formatDate(offering.date)}</div>
-                                <div><strong>Church Offering</strong></div>
+                                <div class="history-date">${formatDate(fee.date)}</div>
+                                <div><strong>Printing Fee</strong> - ${fee.className || 'N/A'}</div>
                             </div>
-                            <div class="history-amount text-success">+${formatCurrency(offering.amount || 0)}</div>
+                            <div class="history-amount text-success">+${formatCurrency(fee.amount || 0)}</div>
                         `;
                         
                         allRecordsContainer.prepend(historyItem);
                     });
-                    
-                    // Load food vendors
-                    database.ref('foodVendors').orderByChild('date').once('value', (foodVendorsSnapshot) => {
-                        foodVendorsSnapshot.forEach((childSnapshot) => {
-                            const vendor = childSnapshot.val();
-                            vendor.id = childSnapshot.key;
+                
+                    // Load offerings
+                    database.ref('offerings').orderByChild('date').once('value', (offeringsSnapshot) => {
+                        offeringsSnapshot.forEach((childSnapshot) => {
+                            const offering = childSnapshot.val();
+                            offering.id = childSnapshot.key;
                             
                             const historyItem = document.createElement('div');
                             historyItem.className = 'history-item';
-                            if (vendor.deleted) {
+                            if (offering.deleted) {
                                 historyItem.classList.add('deleted');
                             }
                             
                             historyItem.innerHTML = `
                                 <div>
-                                    <div class="history-date">${formatDate(vendor.date)}</div>
-                                    <div><strong>Food Vendor</strong> - ${vendor.vendorName || 'N/A'}</div>
+                                    <div class="history-date">${formatDate(offering.date)}</div>
+                                    <div><strong>Church Offering</strong></div>
                                 </div>
-                                <div class="history-amount text-success">+${formatCurrency(vendor.amount || 0)}</div>
+                                <div class="history-amount text-success">+${formatCurrency(offering.amount || 0)}</div>
                             `;
                             
                             allRecordsContainer.prepend(historyItem);
                         });
                         
-                        // Load other fees
-                        database.ref('otherFees').orderByChild('date').once('value', (otherFeesSnapshot) => {
-                            otherFeesSnapshot.forEach((childSnapshot) => {
-                                const other = childSnapshot.val();
-                                other.id = childSnapshot.key;
+                        // Load food vendors
+                        database.ref('foodVendors').orderByChild('date').once('value', (foodVendorsSnapshot) => {
+                            foodVendorsSnapshot.forEach((childSnapshot) => {
+                                const vendor = childSnapshot.val();
+                                vendor.id = childSnapshot.key;
                                 
                                 const historyItem = document.createElement('div');
                                 historyItem.className = 'history-item';
-                                if (other.deleted) {
+                                if (vendor.deleted) {
                                     historyItem.classList.add('deleted');
                                 }
                                 
                                 historyItem.innerHTML = `
                                     <div>
-                                        <div class="history-date">${formatDate(other.date)}</div>
-                                        <div><strong>Other Fee</strong> - ${other.title || 'N/A'} ${other.className ? ' - ' + other.className : ''}</div>
+                                        <div class="history-date">${formatDate(vendor.date)}</div>
+                                        <div><strong>Food Vendor</strong> - ${vendor.vendorName || 'N/A'}</div>
                                     </div>
-                                    <div class="history-amount text-success">+${formatCurrency(other.amount || 0)}</div>
+                                    <div class="history-amount text-success">+${formatCurrency(vendor.amount || 0)}</div>
                                 `;
                                 
                                 allRecordsContainer.prepend(historyItem);
                             });
                             
-                            // Load Expenses
-                            database.ref('Expenses').orderByChild('date').once('value', (ExpensesSnapshot) => {
-                                ExpensesSnapshot.forEach((childSnapshot) => {
-                                    const withdrawal = childSnapshot.val();
-                                    withdrawal.id = childSnapshot.key;
+                            // Load other fees
+                            database.ref('otherFees').orderByChild('date').once('value', (otherFeesSnapshot) => {
+                                otherFeesSnapshot.forEach((childSnapshot) => {
+                                    const other = childSnapshot.val();
+                                    other.id = childSnapshot.key;
                                     
                                     const historyItem = document.createElement('div');
                                     historyItem.className = 'history-item';
-                                    if (withdrawal.deleted) {
+                                    if (other.deleted) {
                                         historyItem.classList.add('deleted');
                                     }
                                     
                                     historyItem.innerHTML = `
                                         <div>
-                                            <div class="history-date">${formatDate(withdrawal.date)}</div>
-                                            <div><strong>Withdrawal from ${withdrawal.source || 'Total Balance'}</strong></div>
-                                            <div>Reason: ${withdrawal.reason || 'N/A'}</div>
+                                            <div class="history-date">${formatDate(other.date)}</div>
+                                            <div><strong>Other Fee</strong> - ${other.title || 'N/A'} ${other.className ? ' - ' + other.className : ''}</div>
                                         </div>
-                                        <div class="history-amount text-danger">-${formatCurrency(withdrawal.amount || 0)}</div>
+                                        <div class="history-amount text-success">+${formatCurrency(other.amount || 0)}</div>
                                     `;
                                     
                                     allRecordsContainer.prepend(historyItem);
                                 });
                                 
+                                // Load Expenses
+                                database.ref('Expenses').orderByChild('date').once('value', (ExpensesSnapshot) => {
+                                    ExpensesSnapshot.forEach((childSnapshot) => {
+                                        const withdrawal = childSnapshot.val();
+                                        withdrawal.id = childSnapshot.key;
+                                        
+                                        const historyItem = document.createElement('div');
+                                        historyItem.className = 'history-item';
+                                        if (withdrawal.deleted) {
+                                            historyItem.classList.add('deleted');
+                                        }
+                                        
+                                        historyItem.innerHTML = `
+                                            <div>
+                                                <div class="history-date">${formatDate(withdrawal.date)}</div>
+                                                <div><strong>Withdrawal from ${withdrawal.source || 'Total Balance'}</strong></div>
+                                                <div>Reason: ${withdrawal.reason || 'N/A'}</div>
+                                            </div>
+                                            <div class="history-amount text-danger">-${formatCurrency(withdrawal.amount || 0)}</div>
+                                        `;
+                                        
+                                        allRecordsContainer.prepend(historyItem);
+                                    });
+                                    
+                                }).catch((error) => {
+                                    logDebug("Error loading Expenses for all records:", error);
+                                });
                             }).catch((error) => {
-                                logDebug("Error loading Expenses for all records:", error);
+                                logDebug("Error loading other fees for all records:", error);
                             });
                         }).catch((error) => {
-                            logDebug("Error loading other fees for all records:", error);
+                            logDebug("Error loading food vendors for all records:", error);
                         });
                     }).catch((error) => {
-                        logDebug("Error loading food vendors for all records:", error);
+                        logDebug("Error loading offerings for all records:", error);
                     });
                 }).catch((error) => {
-                    logDebug("Error loading offerings for all records:", error);
+                    logDebug("Error loading printing fees for all records:", error);
                 });
             }).catch((error) => {
                 logDebug("Error loading class fees for all records:", error);
@@ -1437,14 +1594,16 @@
             // Fetch all data
             Promise.all([
                 database.ref('classFees').once('value'),
+                database.ref('printingFees').once('value'),
                 database.ref('offerings').once('value'),
                 database.ref('foodVendors').once('value'),
                 database.ref('otherFees').once('value'),
                 database.ref('Expenses').once('value')
-            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, otherFeesSnapshot, ExpensesSnapshot]) => {
+            ]).then(([classFeesSnapshot, printingFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, otherFeesSnapshot, ExpensesSnapshot]) => {
                 // Process income data
                 const incomeByType = {
                     'Class Fees': { total: 0, breakdown: {}, classTotals: {} },
+                    'Printing Fees': { total: 0, breakdown: {}, classTotals: {} },
                     'Church Offerings': { total: 0 },
                     'Food Vendors': { total: 0 },
                     'Other Fees': { total: 0, breakdown: {}, titleTotals: {} }
@@ -1470,6 +1629,29 @@
                             incomeByType['Class Fees'].classTotals[className] = 0;
                         }
                         incomeByType['Class Fees'].classTotals[className] += amount;
+                    }
+                });
+                
+                // Process printing fees
+                printingFeesSnapshot.forEach((childSnapshot) => {
+                    const fee = childSnapshot.val();
+                    if (!fee.deleted) {
+                        const className = fee.className || 'Unknown';
+                        const amount = parseFloat(fee.amount) || 0;
+                        
+                        incomeByType['Printing Fees'].total += amount;
+                        
+                        // Track by class
+                        if (!incomeByType['Printing Fees'].breakdown[className]) {
+                            incomeByType['Printing Fees'].breakdown[className] = 0;
+                        }
+                        incomeByType['Printing Fees'].breakdown[className] += amount;
+                        
+                        // Track class totals
+                        if (!incomeByType['Printing Fees'].classTotals[className]) {
+                            incomeByType['Printing Fees'].classTotals[className] = 0;
+                        }
+                        incomeByType['Printing Fees'].classTotals[className] += amount;
                     }
                 });
                 
@@ -1562,6 +1744,40 @@
                 
                 classFeesItem.innerHTML = classFeesContent;
                 incomeBreakdownContainer.appendChild(classFeesItem);
+                
+                // Printing Fees Breakdown
+                const printingFeesItem = document.createElement('div');
+                printingFeesItem.className = 'breakdown-item';
+                
+                let printingFeesContent = `
+                    <div class="d-flex justify-content-between">
+                        <strong>Printing Fees</strong>
+                        <span class="positive-amount">${formatCurrency(incomeByType['Printing Fees'].total)}</span>
+                    </div>
+                `;
+                
+                // Add class totals
+                for (const [className, total] of Object.entries(incomeByType['Printing Fees'].classTotals)) {
+                    printingFeesContent += `
+                        <div class="breakdown-subitem d-flex justify-content-between">
+                            <span>${className} Total</span>
+                            <span class="positive-amount">${formatCurrency(total)}</span>
+                        </div>
+                    `;
+                }
+                
+                // Add individual printing fees
+                for (const [className, amount] of Object.entries(incomeByType['Printing Fees'].breakdown)) {
+                    printingFeesContent += `
+                        <div class="breakdown-subitem d-flex justify-content-between">
+                            <span>${className}</span>
+                            <span class="positive-amount">${formatCurrency(amount)}</span>
+                        </div>
+                    `;
+                }
+                
+                printingFeesItem.innerHTML = printingFeesContent;
+                incomeBreakdownContainer.appendChild(printingFeesItem);
                 
                 // Church Offerings Breakdown
                 const offeringsItem = document.createElement('div');
@@ -1694,6 +1910,10 @@
                     sourceBalance = categoryTotals.classFees;
                     sourceName = 'Class Fees';
                     break;
+                case 'printing_fees':
+                    sourceBalance = categoryTotals.printingFees;
+                    sourceName = 'Printing Fees';
+                    break;
                 case 'church_offerings':
                     sourceBalance = categoryTotals.offerings;
                     sourceName = 'Church Offerings';
@@ -1768,6 +1988,10 @@
                     balance = categoryTotals.classFees;
                     sourceName = 'Class Fees';
                     break;
+                case 'printing_fees':
+                    balance = categoryTotals.printingFees;
+                    sourceName = 'Printing Fees';
+                    break;
                 case 'church_offerings':
                     balance = categoryTotals.offerings;
                     sourceName = 'Church Offerings';
@@ -1815,17 +2039,19 @@
             // Fetch all data
             Promise.all([
                 database.ref('classFees').orderByChild('date').once('value'),
+                database.ref('printingFees').orderByChild('date').once('value'),
                 database.ref('offerings').orderByChild('date').once('value'),
                 database.ref('foodVendors').orderByChild('date').once('value'),
                 database.ref('otherFees').orderByChild('date').once('value'),
                 database.ref('Expenses').orderByChild('date').once('value')
-            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, otherFeesSnapshot, ExpensesSnapshot]) => {
+            ]).then(([classFeesSnapshot, printingFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, otherFeesSnapshot, ExpensesSnapshot]) => {
                 // Process data
                 const incomeData = [];
                 const expenseData = [];
                 const labels = [];
                 const incomeByType = {
                     'Class Fees': 0,
+                    'Printing Fees': 0,
                     'Church Offerings': 0,
                     'Food Vendors': 0,
                     'Other Fees': 0
@@ -1851,6 +2077,28 @@
                         });
                         
                         incomeByType['Class Fees'] += fee.amount;
+                    }
+                });
+                
+                // Process printing fees
+                printingFeesSnapshot.forEach((childSnapshot) => {
+                    const fee = childSnapshot.val();
+                    if ((timePeriod === 0 || fee.date >= cutoffDate) && !fee.deleted) {
+                        const date = new Date(fee.date);
+                        const dateStr = date.toLocaleDateString();
+                        
+                        if (!labels.includes(dateStr)) {
+                            labels.push(dateStr);
+                        }
+                        
+                        incomeData.push({
+                            date: fee.date,
+                            amount: fee.amount,
+                            dateStr: dateStr,
+                            type: 'Printing Fees'
+                        });
+                        
+                        incomeByType['Printing Fees'] += fee.amount;
                     }
                 });
                 
@@ -2117,13 +2365,15 @@
             // Create a backup of all data
             Promise.all([
                 database.ref('classFees').once('value'),
+                database.ref('printingFees').once('value'),
                 database.ref('offerings').once('value'),
                 database.ref('foodVendors').once('value'),
                 database.ref('otherFees').once('value'),
                 database.ref('Expenses').once('value')
-            ]).then(([classFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, otherFeesSnapshot, ExpensesSnapshot]) => {
+            ]).then(([classFeesSnapshot, printingFeesSnapshot, offeringsSnapshot, foodVendorsSnapshot, otherFeesSnapshot, ExpensesSnapshot]) => {
                 backupData = {
                     classFees: classFeesSnapshot.val(),
+                    printingFees: printingFeesSnapshot.val(),
                     offerings: offeringsSnapshot.val(),
                     foodVendors: foodVendorsSnapshot.val(),
                     otherFees: otherFeesSnapshot.val(),
@@ -2138,6 +2388,7 @@
                 // Now delete all data
                 return Promise.all([
                     database.ref('classFees').remove(),
+                    database.ref('printingFees').remove(),
                     database.ref('offerings').remove(),
                     database.ref('foodVendors').remove(),
                     database.ref('otherFees').remove(),
@@ -2202,6 +2453,10 @@
             
             if (backupData.classFees) {
                 promises.push(database.ref('classFees').set(backupData.classFees));
+            }
+            
+            if (backupData.printingFees) {
+                promises.push(database.ref('printingFees').set(backupData.printingFees));
             }
             
             if (backupData.offerings) {
@@ -2282,6 +2537,7 @@
         function initApp() {
             logDebug("Initializing application...");
             loadClassFees();
+            loadPrintingFees();
             loadOfferings();
             loadFoodVendors();
             loadOtherFees();
